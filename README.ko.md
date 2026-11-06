@@ -2,7 +2,120 @@
 
 [English](README.md) · [용어·예시·확인 문제로 공부하기](docs/study-guide.ko.md)
 
-> **2026-11-06 방향 제안:** 이 저장소를 법률 검색·리서치에서 재사용하는 Python 백엔드 모듈(안정판 `stable` + 실험판 `lab`)로 넓히는 설계안이 있습니다. [모듈 설계안](docs/MODULE_DESIGN.ko.md) · 대표 확정 전 초안이며 아래 하이브리드 설계는 그대로 유지합니다.
+## 🚀 2026-11-06 개발안 업데이트 — 보안 + 요약 + 검색 키워드 강화 모듈
+
+> **유사도는 후보를 찾고, 게이트·시험·사람이 확정한다.**
+> ①에서 검증한 RAG·보안 부품을 정리하고 더 넓게 실험해, **Legal Intake**와 **리서치 멀티 에이전트 오케스트레이터**가 함께 쓰는 Python 백엔드 모듈로 키웁니다.
+
+| 핵심 기능 | 하는 일 | 지켜야 할 기준 |
+| --- | --- | --- |
+| 🛡️ **보안** | 마스킹, 직접·간접 프롬프트 주입 탐지, 세션 위험 점수, 외부 전송 차단 | 주입·개인정보 누출 0, 외부 전송 0(대조군 시험 포함) |
+| 📝 **긴 프롬프트 요약** | DB에 저장된 40쪽 이상 프롬프트에서 요약할 재료를 먼저 고름(추출식 브리프) | 결정·제약 회수율, 폐기안이 현재 결정보다 앞서지 않음 |
+| 🔎 **검색 키워드 강화** | 조사 제거 → BM25 + 핵심어 → 질의 확장 → 키워드·벡터 혼합(RRF) → MMR | 골든셋 1위 정답·3위 안 정답(개수로 보고) |
+| 🎯 **임베딩 모델 고르기** | 질문 20개와 정답 조문을 짝지은 골든셋으로 모델을 직접 비교 | 같은 골든셋·같은 분할에서만 비교 |
+
+![③ 모듈 구조: 입력 → guard → embed → store → retrieve → briefing·rag·observe → 재사용처](docs/assets/diagrams/module-plan.ko.png)
+
+<details>
+<summary><strong>Mermaid 원본 보기</strong></summary>
+
+```mermaid
+flowchart TB
+  subgraph IN["입력 · 합성 자료만"]
+    direction LR
+    A1["① 검증 부품<br/>보안·검색·생성·trace"]
+    A2["DB에 저장된<br/>40쪽+ 프롬프트"]
+    A3["골든셋<br/>질문 20 · 조문 10"]
+  end
+  subgraph M3["③ PYTHON-MEMVID-GUARDRAIL"]
+    direction TB
+    G["guard<br/>마스킹 · 주입 탐지<br/>세션 위험"]
+    E["embed<br/>E5 고정 revision · 오프라인"]
+    S["store<br/>memvid 8개씩 적재<br/>전수 검증"]
+    R["retrieve<br/>키워드+벡터 · 근거 게이트"]
+    B["lab/briefing<br/>요약 재료 고르기<br/>핵심어 강화"]
+    RG["rag<br/>LangChain · LangGraph"]
+    O["observe<br/>골든셋 평가<br/>LangSmith 차단"]
+    G --> E --> S --> R
+    R --> B
+    R --> RG
+    RG --> O
+  end
+  subgraph OUT["재사용처"]
+    direction LR
+    U1["① Legal Intake<br/>상담 안내 근거"]
+    U2["법률 검색 시범"]
+    U3["리서치 오케스트레이터<br/>Llama 요약 · DP-14 필터"]
+  end
+  A1 --> G
+  A2 --> G
+  A3 --> O
+  RG --> U1
+  R --> U2
+  B --> U3
+  STOP["외부 전송 0<br/>텔레메트리 · 자동 임베딩<br/>원격 trace 모두 OFF"]
+  O -.-> STOP
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class A1,A2,A3 python;
+  class G guard;
+  class E,S,R engineering;
+  class B architecture;
+  class RG worker;
+  class O guard;
+  class U1,U2,U3 result;
+  class STOP stop;
+  style IN fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style M3 fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style OUT fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+```
+
+</details>
+
+### 진행 방식 — 서두르지 않고, 만들어 써 보고 배운 뒤 최종안으로
+
+![진행 4단계: 시험 개발 → 써 보고 배우기 → 설계 다시 잡기 → 최종 개발](docs/assets/diagrams/roadmap.ko.png)
+
+<details>
+<summary><strong>Mermaid 원본 보기</strong></summary>
+
+```mermaid
+flowchart LR
+  P1["1 시험 개발<br/>다음 주 오전<br/>① B02b · ③ Draft PR #5"]
+  P2["2 써 보고 배우기<br/>다다음 주<br/>학습 트랙 E1~E8"]
+  P3["3 설계 다시 잡기<br/>설계안 v1.0 · 검수<br/>대표 결정"]
+  P4["4 최종 개발<br/>M0 → M7<br/>증거로 승격"]
+  P1 --> P2 --> P3 --> P4
+  P4 -. 새 실험은 lab에서 .-> P1
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  class P1 engineering;
+  class P2 worker;
+  class P3 architecture;
+  class P4 result;
+```
+
+</details>
+
+| 문서 | 내용 |
+| --- | --- |
+| [모듈 설계안 v0.2](docs/MODULE_DESIGN.ko.md) | 사용 시나리오 4개, 인터페이스 계약, 색인 수명주기, 평가 체계, 보안 위협 15개, 모델 후보, 마일스톤 D0~M7 |
+| [골든셋](data/README.md) | `data/golden_set.json` 질문 20개 · `data/articles.json` 합성 조문 10개 |
+| [`src/memvid_guardrail/`](src/memvid_guardrail) | M0 패키지 뼈대 (stable·incubating·lab) |
+| Draft PR #5 | 브리프·골든셋 비교 실험 코드(참고용, 합치지 않음) |
+
+**상태:** 설계 단계, 대표 확정 전입니다. `main`에는 M0 패키지 뼈대(합성 시험만)가 있습니다. 합성 자료만 쓰고, 유료 API와 원격 tracing은 기본으로 쓰지 않으며, Qwen은 제외합니다. 실제 모델 비교는 설계에만 있고 아직 실행하지 않았습니다.
+
+---
+
+> 아래는 기존 하이브리드 설계(Spring + FastAPI + memvid)로, 그대로 유지합니다.
 
 ### Spring Boot Control Plane + Python FastAPI + memvid
 

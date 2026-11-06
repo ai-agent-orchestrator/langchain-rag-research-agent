@@ -1,0 +1,15 @@
+flowchart LR
+  P1["1 Trial build<br/>next week, mornings<br/>① B02b · ③ draft PR #5"]
+  P2["2 Use and learn<br/>the week after<br/>learning track E1–E8"]
+  P3["3 Redesign<br/>design v1.0 · review<br/>owner decisions"]
+  P4["4 Final build<br/>M0 → M7<br/>promote on evidence"]
+  P1 --> P2 --> P3 --> P4
+  P4 -. new experiments start in lab .-> P1
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  class P1 engineering;
+  class P2 worker;
+  class P3 architecture;
+  class P4 result;

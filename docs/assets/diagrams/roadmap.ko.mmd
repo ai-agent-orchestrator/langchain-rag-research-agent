@@ -1,0 +1,15 @@
+flowchart LR
+  P1["1 시험 개발<br/>다음 주 오전<br/>① B02b · ③ Draft PR #5"]
+  P2["2 써 보고 배우기<br/>다다음 주<br/>학습 트랙 E1~E8"]
+  P3["3 설계 다시 잡기<br/>설계안 v1.0 · 검수<br/>대표 결정"]
+  P4["4 최종 개발<br/>M0 → M7<br/>증거로 승격"]
+  P1 --> P2 --> P3 --> P4
+  P4 -. 새 실험은 lab에서 .-> P1
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  class P1 engineering;
+  class P2 worker;
+  class P3 architecture;
+  class P4 result;

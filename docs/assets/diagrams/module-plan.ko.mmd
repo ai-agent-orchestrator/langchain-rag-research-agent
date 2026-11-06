@@ -1,0 +1,53 @@
+flowchart TB
+  subgraph IN["입력 · 합성 자료만"]
+    direction LR
+    A1["① 검증 부품<br/>보안·검색·생성·trace"]
+    A2["DB에 저장된<br/>40쪽+ 프롬프트"]
+    A3["골든셋<br/>질문 20 · 조문 10"]
+  end
+  subgraph M3["③ PYTHON-MEMVID-GUARDRAIL"]
+    direction TB
+    G["guard<br/>마스킹 · 주입 탐지<br/>세션 위험"]
+    E["embed<br/>E5 고정 revision · 오프라인"]
+    S["store<br/>memvid 8개씩 적재<br/>전수 검증"]
+    R["retrieve<br/>키워드+벡터 · 근거 게이트"]
+    B["lab/briefing<br/>요약 재료 고르기<br/>핵심어 강화"]
+    RG["rag<br/>LangChain · LangGraph"]
+    O["observe<br/>골든셋 평가<br/>LangSmith 차단"]
+    G --> E --> S --> R
+    R --> B
+    R --> RG
+    RG --> O
+  end
+  subgraph OUT["재사용처"]
+    direction LR
+    U1["① Legal Intake<br/>상담 안내 근거"]
+    U2["법률 검색 시범"]
+    U3["리서치 오케스트레이터<br/>Llama 요약 · DP-14 필터"]
+  end
+  A1 --> G
+  A2 --> G
+  A3 --> O
+  RG --> U1
+  R --> U2
+  B --> U3
+  STOP["외부 전송 0<br/>텔레메트리 · 자동 임베딩<br/>원격 trace 모두 OFF"]
+  O -.-> STOP
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class A1,A2,A3 python;
+  class G guard;
+  class E,S,R engineering;
+  class B architecture;
+  class RG worker;
+  class O guard;
+  class U1,U2,U3 result;
+  class STOP stop;
+  style IN fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style M3 fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style OUT fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
