@@ -1,0 +1,10 @@
+[
+ {"question": "평일 오후 4시에 매장에서 식사할 수 있어?", "source": "제1조", "type": "paraphrase"},
+ {"question": "토요일 밤 9시 반에도 문 열어요?", "source": "제1조", "type": "paraphrase"},
+ {"question": "다섯 명이 가려는데 미리 연락해야 하나요?", "source": "제2조", "type": "paraphrase"},
+ {"question": "집까지 가져다주는 건 얼마부터 주문해야 해?", "source": "제3조", "type": "paraphrase"},
+ {"question": "강아지 데리고 안에 앉아도 돼요?", "source": "제4조", "type": "paraphrase"},
+ {"question": "음식이 이상하면 다시 해 주나요?", "source": "제5조", "type": "paraphrase"},
+ {"question": "예약 취소 규정", "source": "제2조", "type": "legal_term"},
+ {"question": "환불 기준", "source": "제5조", "type": "legal_term"}
+]

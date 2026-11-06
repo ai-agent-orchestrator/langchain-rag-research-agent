@@ -1,0 +1,22 @@
+[
+ {"question": "이 서비스로 변호사 의견을 받을 수 있는 건가요?", "source": "제1조", "type": "paraphrase"},
+ {"question": "약관을 만든 이유가 뭐예요?", "source": "제1조", "type": "paraphrase"},
+ {"question": "다음 주 월요일에 가려면 언제까지 신청해야 해?", "source": "제2조", "type": "paraphrase"},
+ {"question": "상담 예약 방법", "source": "제2조", "type": "legal_term"},
+ {"question": "내일 약속을 다른 날로 미뤄도 되나요?", "source": "제3조", "type": "paraphrase"},
+ {"question": "늦게 도착하면 상담이 없어지나요?", "source": "제3조", "type": "paraphrase"},
+ {"question": "전날 밤에 취소하면 돈은 얼마나 돌려받아?", "source": "제4조", "type": "paraphrase"},
+ {"question": "상담 비용 환불 기준", "source": "제4조", "type": "legal_term"},
+ {"question": "상담 갈 때 뭘 챙겨 가야 하나요?", "source": "제5조", "type": "paraphrase"},
+ {"question": "가져간 서류 원본은 돌려주나요?", "source": "제5조", "type": "paraphrase"},
+ {"question": "제 전화번호를 다른 회사에 넘기지는 않죠?", "source": "제6조", "type": "paraphrase"},
+ {"question": "개인정보 수집 항목", "source": "제6조", "type": "legal_term"},
+ {"question": "상담 끝나고 제 정보는 언제 지워져요?", "source": "제7조", "type": "paraphrase"},
+ {"question": "개인정보 삭제 요청", "source": "제7조", "type": "legal_term"},
+ {"question": "제 사정을 다른 사람이 알게 될까 봐 걱정돼요", "source": "제8조", "type": "paraphrase"},
+ {"question": "상담 내용을 가족에게 전해 줄 수 있나요?", "source": "제8조", "type": "paraphrase"},
+ {"question": "AI가 이길 확률도 알려 주나요?", "source": "제9조", "type": "paraphrase"},
+ {"question": "자료가 없으면 AI는 어떻게 답하나요?", "source": "제9조", "type": "paraphrase"},
+ {"question": "사무소와 의견이 안 맞으면 어디에 도움을 청하죠?", "source": "제10조", "type": "paraphrase"},
+ {"question": "분쟁 조정 신청", "source": "제10조", "type": "legal_term"}
+]
