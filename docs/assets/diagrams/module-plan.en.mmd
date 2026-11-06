@@ -1,0 +1,53 @@
+flowchart TB
+  subgraph IN["INPUTS · SYNTHETIC ONLY"]
+    direction LR
+    A1["① verified parts<br/>security · retrieval · generation · trace"]
+    A2["40+ page prompts<br/>stored in a DB"]
+    A3["Golden set<br/>20 questions · 10 articles"]
+  end
+  subgraph M3["③ PYTHON-MEMVID-GUARDRAIL"]
+    direction TB
+    G["guard<br/>masking · injection checks<br/>session risk"]
+    E["embed<br/>E5 pinned revision · offline"]
+    S["store<br/>memvid writes of 8<br/>full verification"]
+    R["retrieve<br/>keyword + vector · evidence gate"]
+    B["lab/briefing<br/>pick summary material<br/>keyword boosting"]
+    RG["rag<br/>LangChain · LangGraph"]
+    O["observe<br/>golden-set evaluation<br/>LangSmith blocked"]
+    G --> E --> S --> R
+    R --> B
+    R --> RG
+    RG --> O
+  end
+  subgraph OUT["REUSED BY"]
+    direction LR
+    U1["① Legal Intake<br/>guidance evidence"]
+    U2["Legal search pilot"]
+    U3["Research orchestrator<br/>Llama summary · DP-14 filter"]
+  end
+  A1 --> G
+  A2 --> G
+  A3 --> O
+  RG --> U1
+  R --> U2
+  B --> U3
+  STOP["Zero egress<br/>telemetry · auto-embedding<br/>remote trace all OFF"]
+  O -.-> STOP
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class A1,A2,A3 python;
+  class G guard;
+  class E,S,R engineering;
+  class B architecture;
+  class RG worker;
+  class O guard;
+  class U1,U2,U3 result;
+  class STOP stop;
+  style IN fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style M3 fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style OUT fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb

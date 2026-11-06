@@ -2,8 +2,119 @@
 
 [Korean study edition](README.ko.md)
 
+## 🚀 2026-11-06 plan update — security + summarization + search-keyword module
 
-> **2026-11-06 direction proposal:** a design to grow this repository into a reusable Python backend module (a `stable` tier plus an experimental `lab`) for legal search and research. [Module design (Korean)](docs/MODULE_DESIGN.ko.md). Draft awaiting the owner's decision; the hybrid design below is unchanged.
+> **Similarity finds candidates; gates, tests and people confirm.**
+> Consolidate the RAG and security parts verified in ①, experiment more widely, and grow them into a Python backend module shared by **Legal Intake** and the **multi-agent research orchestrator**.
+
+| Capability | What it does | Bar to meet |
+| --- | --- | --- |
+| 🛡️ **Security** | masking, direct and indirect prompt-injection checks, session risk, egress blocking | zero injection or PII leaks, zero egress (with control tests) |
+| 📝 **Long-prompt summarization** | pick the material to summarize from 40+ page prompts stored in a DB (extractive brief) | recall of decisions and constraints; superseded text never ahead of current decisions |
+| 🔎 **Search-keyword boosting** | particle stripping → BM25 + salient terms → query expansion → keyword/vector fusion (RRF) → MMR | golden-set top-1 and top-3 hits, reported as counts |
+| 🎯 **Choosing an embedding model** | compare models on a golden set of 20 questions paired with their answer articles | compare only on the same golden set and split |
+
+![Module structure: inputs → guard → embed → store → retrieve → briefing, rag, observe → reused by](docs/assets/diagrams/module-plan.en.png)
+
+<details>
+<summary><strong>Mermaid source</strong></summary>
+
+```mermaid
+flowchart TB
+  subgraph IN["INPUTS · SYNTHETIC ONLY"]
+    direction LR
+    A1["① verified parts<br/>security · retrieval · generation · trace"]
+    A2["40+ page prompts<br/>stored in a DB"]
+    A3["Golden set<br/>20 questions · 10 articles"]
+  end
+  subgraph M3["③ PYTHON-MEMVID-GUARDRAIL"]
+    direction TB
+    G["guard<br/>masking · injection checks<br/>session risk"]
+    E["embed<br/>E5 pinned revision · offline"]
+    S["store<br/>memvid writes of 8<br/>full verification"]
+    R["retrieve<br/>keyword + vector · evidence gate"]
+    B["lab/briefing<br/>pick summary material<br/>keyword boosting"]
+    RG["rag<br/>LangChain · LangGraph"]
+    O["observe<br/>golden-set evaluation<br/>LangSmith blocked"]
+    G --> E --> S --> R
+    R --> B
+    R --> RG
+    RG --> O
+  end
+  subgraph OUT["REUSED BY"]
+    direction LR
+    U1["① Legal Intake<br/>guidance evidence"]
+    U2["Legal search pilot"]
+    U3["Research orchestrator<br/>Llama summary · DP-14 filter"]
+  end
+  A1 --> G
+  A2 --> G
+  A3 --> O
+  RG --> U1
+  R --> U2
+  B --> U3
+  STOP["Zero egress<br/>telemetry · auto-embedding<br/>remote trace all OFF"]
+  O -.-> STOP
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class A1,A2,A3 python;
+  class G guard;
+  class E,S,R engineering;
+  class B architecture;
+  class RG worker;
+  class O guard;
+  class U1,U2,U3 result;
+  class STOP stop;
+  style IN fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style M3 fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style OUT fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+```
+
+</details>
+
+### How we proceed — no rush: build, use, learn, then the final design
+
+![Four stages: trial build → use and learn → redesign → final build](docs/assets/diagrams/roadmap.en.png)
+
+<details>
+<summary><strong>Mermaid source</strong></summary>
+
+```mermaid
+flowchart LR
+  P1["1 Trial build<br/>next week, mornings<br/>① B02b · ③ draft PR #5"]
+  P2["2 Use and learn<br/>the week after<br/>learning track E1–E8"]
+  P3["3 Redesign<br/>design v1.0 · review<br/>owner decisions"]
+  P4["4 Final build<br/>M0 → M7<br/>promote on evidence"]
+  P1 --> P2 --> P3 --> P4
+  P4 -. new experiments start in lab .-> P1
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  class P1 engineering;
+  class P2 worker;
+  class P3 architecture;
+  class P4 result;
+```
+
+</details>
+
+| Document | Contents |
+| --- | --- |
+| [Module design v0.2 (Korean)](docs/MODULE_DESIGN.ko.md) | four usage scenarios, interface contracts, index lifecycle, evaluation, 15 security threats, model candidates, milestones D0–M7 |
+| [Golden set](data/README.md) | `data/golden_set.json` 20 questions · `data/articles.json` 10 synthetic articles |
+| Draft PR #5 | prototype (reference only, not to be merged) |
+
+**Status:** design stage, awaiting the owner's decision. Synthetic data only; no paid APIs or remote tracing by default; Qwen excluded. The real-model comparison is designed but not yet run.
+
+---
+
+> The original hybrid design (Spring + FastAPI + memvid) follows below, unchanged.
 
 ### Spring Boot Control Plane + Python FastAPI + memvid
 
