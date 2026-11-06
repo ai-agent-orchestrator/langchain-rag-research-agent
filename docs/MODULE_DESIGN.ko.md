@@ -138,6 +138,21 @@ docs/evidence/ # 단계별 증거(합성 자료만)
 
 **승격 조건.** E5와 비교 후보 하나 이상을 같은 골든셋으로 비교한 보고서가 `docs/evidence/golden/`에 남을 것.
 
+## 5-3. 다음 단계 계획 — 실제 모델 비교 (설계만, 지금 실행하지 않음)
+
+현재 결과는 모두 가짜 임베더 기준선입니다. 실제 모델 비교는 아래 조건이 갖춰진 뒤 별도 승인으로 진행합니다.
+
+| 항목 | 계획 |
+| --- | --- |
+| 시작 조건 | 대표가 §7의 4개 항목을 확정 · ①의 B02b(실제 E5) 결과 검수 완료 |
+| 실행 위치 | 대표 PC의 RAG 실행 환경(Python 3.12, CPU). 모델은 고정 revision으로 1회 받은 뒤 `HF_HUB_OFFLINE=1` |
+| 비교 후보 | E5(`multilingual-e5-large-instruct`, revision `274baa4…`) · 가짜 임베더(기준선) · 후보 1개 추가(Ollama 임베딩 모델 등, 대표 확인 후). Qwen 제외 |
+| 실험 1: 골든셋 | `scripts/compare_embedders.py --legal-intake <corpus/synthetic> --models fake,e5@<revision>` 와 법률 조문 골든셋 `--golden --corpus` |
+| 실험 2: 긴 프롬프트 브리프 | `scripts/run_brief_experiment.py --embedder e5 --revision <revision>` (합성 41.6쪽, 4가지 방식) |
+| 결과물 | `docs/evidence/golden/`, `docs/evidence/brief/` (합성 자료만, 벡터 없음) |
+| 판단 기준 | 골든셋: 1위·3위 안 정답 수와 갈린 질문을 사람이 읽고 모델 선택 · 브리프: 혼합이 단독 방식보다 낫고 누출 0 유지 |
+| 그 뒤 | 기준을 넘은 부품만 `lab` → `incubating`/`stable` 승격(증거 파일 첨부) |
+
 ## 6. 이전 순서
 
 | 단계 | 내용 | 끝난 기준 |
@@ -158,6 +173,8 @@ docs/evidence/ # 단계별 증거(합성 자료만)
 4. 기존 Spring 하이브리드 설계 문서: **A** `docs/hybrid/`로 옮겨 유지 / B README 앞부분 유지
 
 추천: 1A, 2A, 3A, 4A. 답 형식 예: `③: 1A 2A 3A 4A`.
+
+**상태(2026-11-06): 대표 결정 대기.** 결정 전에는 §5-3의 실제 모델 비교와 M1 이후 이전 작업을 시작하지 않습니다.
 
 ## 8. 하지 않는 것
 
