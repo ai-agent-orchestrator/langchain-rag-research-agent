@@ -4,10 +4,28 @@
 
 이 저장소(③)를 "①에서 검증한 부품을 옮겨 두는 곳"에서 한 단계 넓혀, **법률 검색과 리서치가 그대로 가져다 쓰는 Python 백엔드 모듈**로 만든다. 동시에 LangChain·LangGraph·LangSmith·임베딩·유사도 검색·보안 실험을 마음껏 할 수 있도록 **안정판(stable)과 실험판(lab)을 한 저장소 안에서 분리**한다.
 
+## 0. ①과 ③의 역할
+
+| | ① legal-intake-fastapi-lab | ③ python-memvid-guardrail |
+| --- | --- | --- |
+| 목적 | 상담 안내 API 하나에서 보안·검색·생성·마케팅을 **최소 범위로 검증** | ①에서 검증한 구현·계약·시험을 **정리**하고, 더 넓게 **실험**해 법률 검색·리서치가 쓰는 **재사용 백엔드 모듈**로 만듦 |
+| LangChain·LangGraph·LangSmith·RAG | 필수 범위의 기본 사용(3 node, 합성 평가) | 같은 부품을 모듈로 묶고, 하이브리드·리랭킹·질의 재작성·의미 기반 가드 등 확장 실험 |
+| 데이터 | 합성 안내문 10개 | 합성·공개 자료 컬렉션 여러 개(안내문, 조문·판례 예시, 리서치 카드) |
+| 결과물 | 동작하는 FastAPI 앱 | `pip install` 가능한 패키지 + 실험 보고서 |
+
+저장소 순서 문구(README에 반영할 안):
+
+| 순서 | 역할 |
+| --- | --- |
+| ① legal-intake-fastapi-lab | FastAPI 단독에서 보안·검색·생성·마케팅 기능을 최소 범위로 검증 |
+| ③ python-memvid-guardrail | ①에서 검증한 구현·계약·시험을 정리하고, LangChain·LangSmith·보안·RAG·유사도 검색을 더 넓게 실험해 법률 검색·리서치에서 쓰는 재사용 백엔드 모듈로 개발 |
+| ② spring-fastapi-async-refactor | Spring 인증·인가와 FastAPI AI 서비스 연결 |
+| 이후 | 검증한 기능을 기반으로 별도 비공개 상업화 개발 |
+
 ## 1. 원칙
 
-1. **안정판은 검증된 것만.** ① legal-intake-fastapi-lab에서 시험·증거가 남은 부품만 `stable`로 올린다. 그 전에는 `lab`에 둔다.
-2. **실험은 마음껏, 대신 격리.** 하이브리드 검색, 의미 기반 주입 탐지, 질의 재작성, 리랭킹, LangSmith 실험은 `lab/`에서 한다. 안정판 코드가 lab을 import하지 않는다.
+1. **세 단계로 나눈다.** `stable`은 ①(또는 ③ 평가)에서 실모델·증거가 남은 것, `incubating`은 ①에서 옮겨 왔지만 ① 증거를 기다리는 것, `lab`은 ③에서만 하는 실험이다. 각 모듈은 자기 단계를 `MATURITY` 상수로 밝힌다.
+2. **실험은 마음껏, 대신 격리.** 하이브리드 검색, 의미 기반 주입 탐지, 질의 재작성, 리랭킹, LangSmith 실험은 `memvid_guardrail.lab`에서 한다. stable·incubating 코드는 lab을 import하지 않으며, 시험이 이를 확인한다.
 3. **프레임워크는 선택 사항.** 핵심 계약(core)은 표준 라이브러리만 쓴다. memvid·E5·LangChain·LangGraph·LangSmith·NeMo·FastAPI는 extras로 설치한다.
 4. **유사도는 후보를 찾고, 확정은 게이트가 한다.** 검색·필터·라우팅은 후보를 내고, 정책·시험·사람이 결정한다.
 5. **데이터는 PC 밖으로 나가지 않는 것이 기본값.** 텔레메트리 OFF, 외부 임베딩 OFF, 원격 tracing OFF가 기본이며, 켤 때는 코드에서 명시한다.
@@ -25,7 +43,7 @@ src/memvid_guardrail/
   rag/         # LangChain 체인, LangGraph 그래프, 구조화 응답·출처 검증·서버 조립
   observe/     # tracing 차단·허용 목록, 평가 하네스(Hit@k, 혼동표, 지연)
   adapters/    # FastAPI 라우터 팩토리, CLI (선택)
-lab/           # 실험: hybrid, semantic_guard, query_rewrite, rerank, langsmith_experiments ...
+  lab/         # 실험: hybrid(RRF), semantic_guard, query_rewrite, rerank, langsmith_experiments ...
 tests/         # stable 시험 + lab 시험(별도 마커)
 docs/evidence/ # 단계별 증거(합성 자료만)
 ```
