@@ -1,0 +1,396 @@
+{
+ "embedder": "fake-char-bigram",
+ "revision": "fake-v1",
+ "compare": {
+  "mode": "vector",
+  "rule": {
+   "tau_abs": 0.2598505751938437,
+   "tau_gap": 0.1360821323217594,
+   "version": "fake-char-bigram@fake-v1"
+  },
+  "ranking": {
+   "hit_at_1": "10/14",
+   "hit_at_3": "10/14",
+   "mrr": 0.7143
+  },
+  "decision": {
+   "found_accepted": 5,
+   "found_refused": 5,
+   "wrong_accepted": 0,
+   "wrong_refused": 4,
+   "no_evidence_refused": 7,
+   "no_evidence_accepted": 0
+  },
+  "attention": [
+   "G001",
+   "G010",
+   "G013",
+   "G015",
+   "G017"
+  ],
+  "rows": [
+   {
+    "id": "G001",
+    "split": "compare",
+    "type": "paraphrase",
+    "expected": [
+     "제1조"
+    ],
+    "first_hit_rank": 1,
+    "top1": 0.1785419101930847,
+    "gap": 0.07544364783779439,
+    "outcome": "found_refused"
+   },
+   {
+    "id": "G002",
+    "split": "compare",
+    "type": "paraphrase",
+    "expected": [
+     "제1조"
+    ],
+    "first_hit_rank": null,
+    "top1": 0.05698028822981897,
+    "gap": 0.023479027721178575,
+    "outcome": "wrong_refused"
+   },
+   {
+    "id": "G004",
+    "split": "compare",
+    "type": "legal_term",
+    "expected": [
+     "제2조"
+    ],
+    "first_hit_rank": 1,
+    "top1": 0.3632612873491999,
+    "gap": 0.13965448959922094,
+    "outcome": "found_accepted"
+   },
+   {
+    "id": "G005",
+    "split": "compare",
+    "type": "paraphrase",
+    "expected": [
+     "제3조"
+    ],
+    "first_hit_rank": null,
+    "top1": 0.08714893406611901,
+    "gap": 0.034167639783517265,
+    "outcome": "wrong_refused"
+   },
+   {
+    "id": "G006",
+    "split": "compare",
+    "type": "paraphrase",
+    "expected": [
+     "제3조"
+    ],
+    "first_hit_rank": null,
+    "top1": 0.15124753549550501,
+    "gap": 0.029765152808039375,
+    "outcome": "wrong_refused"
+   },
+   {
+    "id": "G008",
+    "split": "compare",
+    "type": "legal_term",
+    "expected": [
+     "제4조"
+    ],
+    "first_hit_rank": 1,
+    "top1": 0.27500954910846337,
+    "gap": 0.14902139143872098,
+    "outcome": "found_accepted"
+   },
+   {
+    "id": "G009",
+    "split": "compare",
+    "type": "paraphrase",
+    "expected": [
+     "제5조"
+    ],
+    "first_hit_rank": null,
+    "top1": 0.11724207635210986,
+    "gap": 0.02389007075024252,
+    "outcome": "wrong_refused"
+   },
+   {
+    "id": "G010",
+    "split": "compare",
+    "type": "paraphrase",
+    "expected": [
+     "제5조"
+    ],
+    "first_hit_rank": 1,
+    "top1": 0.215716742976478,
+    "gap": 0.10360461064375924,
+    "outcome": "found_refused"
+   },
+   {
+    "id": "G013",
+    "split": "compare",
+    "type": "paraphrase",
+    "expected": [
+     "제7조"
+    ],
+    "first_hit_rank": 1,
+    "top1": 0.15894388284780525,
+    "gap": 0.07179494878168624,
+    "outcome": "found_refused"
+   },
+   {
+    "id": "G014",
+    "split": "compare",
+    "type": "legal_term",
+    "expected": [
+     "제7조"
+    ],
+    "first_hit_rank": 1,
+    "top1": 0.3490050304482666,
+    "gap": 0.23673285216349862,
+    "outcome": "found_accepted"
+   },
+   {
+    "id": "G015",
+    "split": "compare",
+    "type": "paraphrase",
+    "expected": [
+     "제8조"
+    ],
+    "first_hit_rank": 1,
+    "top1": 0.16372433836314543,
+    "gap": 0.09168052239893429,
+    "outcome": "found_refused"
+   },
+   {
+    "id": "G017",
+    "split": "compare",
+    "type": "paraphrase",
+    "expected": [
+     "제9조"
+    ],
+    "first_hit_rank": 1,
+    "top1": 0.13103560459023977,
+    "gap": 0.0686269566488101,
+    "outcome": "found_refused"
+   },
+   {
+    "id": "G018",
+    "split": "compare",
+    "type": "paraphrase",
+    "expected": [
+     "제9조"
+    ],
+    "first_hit_rank": 1,
+    "top1": 0.2598505751938437,
+    "gap": 0.1360821323217594,
+    "outcome": "found_accepted"
+   },
+   {
+    "id": "G020",
+    "split": "compare",
+    "type": "legal_term",
+    "expected": [
+     "제10조"
+    ],
+    "first_hit_rank": 1,
+    "top1": 0.29631887899487686,
+    "gap": 0.25203813471787206,
+    "outcome": "found_accepted"
+   },
+   {
+    "id": "G021",
+    "split": "compare",
+    "type": "off_topic",
+    "expected": [],
+    "first_hit_rank": null,
+    "top1": 0.2143973621410911,
+    "gap": 0.11354278100923125,
+    "outcome": "no_evidence_refused"
+   },
+   {
+    "id": "G022",
+    "split": "compare",
+    "type": "off_topic",
+    "expected": [],
+    "first_hit_rank": null,
+    "top1": 0.03247849012308155,
+    "gap": 0.00040347516810233797,
+    "outcome": "no_evidence_refused"
+   },
+   {
+    "id": "G024",
+    "split": "compare",
+    "type": "off_topic",
+    "expected": [],
+    "first_hit_rank": null,
+    "top1": 0.11724207635210986,
+    "gap": 0.001772022514184679,
+    "outcome": "no_evidence_refused"
+   },
+   {
+    "id": "G025",
+    "split": "compare",
+    "type": "hard_negative",
+    "expected": [],
+    "first_hit_rank": null,
+    "top1": 0.1878672873255448,
+    "gap": 0.08190469876034132,
+    "outcome": "no_evidence_refused"
+   },
+   {
+    "id": "G026",
+    "split": "compare",
+    "type": "hard_negative",
+    "expected": [],
+    "first_hit_rank": null,
+    "top1": 0.17238033175224826,
+    "gap": 0.026858956730448497,
+    "outcome": "no_evidence_refused"
+   },
+   {
+    "id": "G028",
+    "split": "compare",
+    "type": "hard_negative",
+    "expected": [],
+    "first_hit_rank": null,
+    "top1": 0.22271770159368698,
+    "gap": 0.11558031050481613,
+    "outcome": "no_evidence_refused"
+   },
+   {
+    "id": "G029",
+    "split": "compare",
+    "type": "hard_negative",
+    "expected": [],
+    "first_hit_rank": null,
+    "top1": 0.13803940759355818,
+    "gap": 0.014270964721473878,
+    "outcome": "no_evidence_refused"
+   }
+  ]
+ },
+ "confirm": {
+  "mode": "vector",
+  "rule": {
+   "tau_abs": 0.2598505751938437,
+   "tau_gap": 0.1360821323217594,
+   "version": "fake-char-bigram@fake-v1"
+  },
+  "ranking": {
+   "hit_at_1": "2/6",
+   "hit_at_3": "3/6",
+   "mrr": 0.4167
+  },
+  "decision": {
+   "found_accepted": 0,
+   "found_refused": 2,
+   "wrong_accepted": 0,
+   "wrong_refused": 4,
+   "no_evidence_refused": 2,
+   "no_evidence_accepted": 0
+  },
+  "attention": [
+   "G007",
+   "G016"
+  ],
+  "rows": [
+   {
+    "id": "G003",
+    "split": "confirm",
+    "type": "paraphrase",
+    "expected": [
+     "제2조"
+    ],
+    "first_hit_rank": null,
+    "top1": 0.06882472016116853,
+    "gap": 0.018155260967354543,
+    "outcome": "wrong_refused"
+   },
+   {
+    "id": "G007",
+    "split": "confirm",
+    "type": "paraphrase",
+    "expected": [
+     "제4조"
+    ],
+    "first_hit_rank": 1,
+    "top1": 0.2040187908273743,
+    "gap": 0.08931092389209344,
+    "outcome": "found_refused"
+   },
+   {
+    "id": "G011",
+    "split": "confirm",
+    "type": "paraphrase",
+    "expected": [
+     "제6조"
+    ],
+    "first_hit_rank": null,
+    "top1": 0.15294382258037448,
+    "gap": 0.0769396337896535,
+    "outcome": "wrong_refused"
+   },
+   {
+    "id": "G012",
+    "split": "confirm",
+    "type": "legal_term",
+    "expected": [
+     "제6조"
+    ],
+    "first_hit_rank": 2,
+    "top1": 0.27144835701531844,
+    "gap": 0.04690400044578252,
+    "outcome": "wrong_refused"
+   },
+   {
+    "id": "G016",
+    "split": "confirm",
+    "type": "paraphrase",
+    "expected": [
+     "제8조"
+    ],
+    "first_hit_rank": 1,
+    "top1": 0.1687631851389036,
+    "gap": 0.04184491449720121,
+    "outcome": "found_refused"
+   },
+   {
+    "id": "G019",
+    "split": "confirm",
+    "type": "paraphrase",
+    "expected": [
+     "제10조"
+    ],
+    "first_hit_rank": null,
+    "top1": 0.17610411189931965,
+    "gap": 0.06540225120680773,
+    "outcome": "wrong_refused"
+   },
+   {
+    "id": "G023",
+    "split": "confirm",
+    "type": "off_topic",
+    "expected": [],
+    "first_hit_rank": null,
+    "top1": 0.0545544725589981,
+    "gap": 0.024937028671043474,
+    "outcome": "no_evidence_refused"
+   },
+   {
+    "id": "G027",
+    "split": "confirm",
+    "type": "hard_negative",
+    "expected": [],
+    "first_hit_rank": null,
+    "top1": 0.2913971185543096,
+    "gap": 0.12061460578831634,
+    "outcome": "no_evidence_refused"
+   }
+  ]
+ },
+ "rule": {
+  "tau_abs": 0.2598505751938437,
+  "tau_gap": 0.1360821323217594,
+  "version": "fake-char-bigram@fake-v1"
+ }
+}

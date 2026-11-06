@@ -174,7 +174,7 @@ manifest 필드: `indexVersion, file, sha256, collectionId, embeddingModel, pinn
 | 크기 | 20문항(학습) → 60문항(모델 선택) → 200문항(운영 전) 순으로 늘립니다 |
 | 검토 | 질문·정답 짝을 두 사람이 확인하거나, 한 사람이 하루 뒤 다시 확인합니다 |
 
-현재 `data/golden_set.json`(20문항, 조문 10개, 헷갈리는 짝 3쌍)은 학습 단계용입니다. 무근거 질문은 아직 없으며 60문항 단계에서 추가합니다.
+현재 `data/golden_set.json`(20문항, 조문 10개, 헷갈리는 짝 3쌍)은 학습 단계용입니다. 무근거 질문 9개(주제 밖 4, 비슷하지만 답 없는 5)는 `data/golden_no_evidence.json`에 따로 두어, 합치면 29문항 중 31%입니다.
 
 ### 4-2. 지표
 
@@ -182,6 +182,7 @@ manifest 필드: `indexVersion, file, sha256, collectionId, embeddingModel, pinn
 | --- | --- |
 | 검색 | 1위 정답, 3위 안 정답, MRR, 유형별 결과, 모델 간 결과가 갈린 질문 |
 | 무근거 | 혼동표(근거 있음/없음 × 통과/차단), 기준값과 그 버전 |
+| 두 축 | 질문마다 "정답 순위"와 "판정"을 함께 기록. `found_refused`(정답 1위인데 거절)와 `wrong_accepted`(오답인데 통과)는 따로 셉니다 (`observe/evaluate.two_axis_report`, [예시](evidence/golden/README.md)) |
 | 브리프 | 결정·제약 회수율, 폐기안 포함 수, 주입·개인정보 누출 수, 압축률, 예산 준수 |
 | 응답 | 인용 ID가 검색 결과의 부분집합인지, 형식 실패율, 원문에 없는 숫자·ID 수 |
 | 비용·자원 | 문서 인코딩 시간, 질문 인코딩 중앙값, 메모리, 실패·timeout 수 |
