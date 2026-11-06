@@ -86,9 +86,10 @@ def publish_index(chunks: Sequence[Chunk], vectors: Sequence[Sequence[float]], *
             # 30+ items per call). Small batches kept every vector in our probe; the full check
             # below still verifies every chunk before activation.
             for start in range(0, len(requests), PUT_BATCH):
+                # put_many reads enable_embedding from opts only; the per-request key is ignored.
                 mem.put_many(requests[start:start + PUT_BATCH],
                              embeddings=[list(map(float, v)) for v in vectors[start:start + PUT_BATCH]],
-                             embedding_identity=identity)
+                             embedding_identity=identity, opts={"enable_embedding": False})
             mem.seal()
         finally:
             mem.close()

@@ -24,14 +24,14 @@ def test_every_module_declares_a_tier():
 
 def test_lab_modules_live_in_lab_and_say_so():
     for path in modules():
-        in_lab = path.parent.name == "lab"
+        in_lab = "lab" in path.relative_to(PKG).parts
         assert (maturity(path) == "lab") == in_lab, path
 
 
 def test_non_lab_code_never_imports_lab():
     offenders = []
     for path in modules():
-        if path.parent.name == "lab":
+        if "lab" in path.relative_to(PKG).parts:
             continue
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             names = [a.name for a in node.names] if isinstance(node, ast.Import) else []

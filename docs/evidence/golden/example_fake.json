@@ -1,0 +1,134 @@
+{
+ "k": 3,
+ "questions": 8,
+ "documents": 5,
+ "results": {
+  "fake": {
+   "model": "fake-char-bigram",
+   "revision": "fake-v1",
+   "top1": "5/8",
+   "top3": "7/8",
+   "mrr": 0.7396,
+   "by_type": {
+    "paraphrase": {
+     "top1": "3/6",
+     "top3": "5/6"
+    },
+    "legal_term": {
+     "top1": "2/2",
+     "top3": "2/2"
+    }
+   },
+   "doc_encode_ms": 1.0,
+   "median_query_ms": 0.14,
+   "items": [
+    {
+     "question": "평일 오후 4시에 매장에서 식사할 수 있어?",
+     "source": "제1조",
+     "type": "paraphrase",
+     "rank": 1,
+     "top": [
+      "제1조",
+      "제3조",
+      "제4조"
+     ],
+     "top1_score": 0.2169,
+     "gold_score": 0.2169
+    },
+    {
+     "question": "토요일 밤 9시 반에도 문 열어요?",
+     "source": "제1조",
+     "type": "paraphrase",
+     "rank": 3,
+     "top": [
+      "제4조",
+      "제2조",
+      "제1조"
+     ],
+     "top1_score": 0.0405,
+     "gold_score": 0.0248
+    },
+    {
+     "question": "다섯 명이 가려는데 미리 연락해야 하나요?",
+     "source": "제2조",
+     "type": "paraphrase",
+     "rank": 4,
+     "top": [
+      "제4조",
+      "제5조",
+      "제1조"
+     ],
+     "top1_score": 0.0354,
+     "gold_score": 0.0
+    },
+    {
+     "question": "집까지 가져다주는 건 얼마부터 주문해야 해?",
+     "source": "제3조",
+     "type": "paraphrase",
+     "rank": 3,
+     "top": [
+      "제1조",
+      "제2조",
+      "제3조"
+     ],
+     "top1_score": 0.14,
+     "gold_score": 0.0542
+    },
+    {
+     "question": "강아지 데리고 안에 앉아도 돼요?",
+     "source": "제4조",
+     "type": "paraphrase",
+     "rank": 1,
+     "top": [
+      "제4조",
+      "제5조",
+      "제3조"
+     ],
+     "top1_score": 0.1214,
+     "gold_score": 0.1214
+    },
+    {
+     "question": "음식이 이상하면 다시 해 주나요?",
+     "source": "제5조",
+     "type": "paraphrase",
+     "rank": 1,
+     "top": [
+      "제5조",
+      "제1조",
+      "제4조"
+     ],
+     "top1_score": 0.1469,
+     "gold_score": 0.1469
+    },
+    {
+     "question": "예약 취소 규정",
+     "source": "제2조",
+     "type": "legal_term",
+     "rank": 1,
+     "top": [
+      "제2조",
+      "제5조",
+      "제3조"
+     ],
+     "top1_score": 0.3278,
+     "gold_score": 0.3278
+    },
+    {
+     "question": "환불 기준",
+     "source": "제5조",
+     "type": "legal_term",
+     "rank": 1,
+     "top": [
+      "제5조",
+      "제1조",
+      "제2조"
+     ],
+     "top1_score": 0.0765,
+     "gold_score": 0.0765
+    }
+   ]
+  }
+ },
+ "disagreements": [],
+ "network_attempts": []
+}
