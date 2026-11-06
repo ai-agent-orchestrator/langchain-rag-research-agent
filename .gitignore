@@ -5,7 +5,10 @@ __pycache__/
 build/
 dist/
 .venv*/
-data/
+data/*
+!data/golden_set.json
+!data/articles.json
+!data/README.md
 *.mv2
 *.mv2.*
 *.npy

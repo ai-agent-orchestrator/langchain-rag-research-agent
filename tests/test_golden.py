@@ -50,3 +50,13 @@ def test_legal_intake_conversion_uses_evidence_items_only():
     golden, corpus = from_legal_intake(load_json(root / "eval" / "intakes.json"), root, manifest)
     assert len(corpus) == 10 and len(golden) == 20
     validate(golden, corpus)
+
+
+def test_repository_golden_set_shape():
+    root = Path(__file__).resolve().parents[1] / "data"
+    golden, corpus = load_json(root / "golden_set.json"), load_json(root / "articles.json")
+    validate(golden, corpus)
+    assert len(golden) == 20 and len(corpus) == 10
+    from collections import Counter
+    assert set(Counter(g["source"] for g in golden).values()) == {2}   # two questions per article
+    assert {g["type"] for g in golden} == {"paraphrase", "legal_term"}
