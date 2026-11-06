@@ -1,0 +1,46 @@
+{
+  "version": "eval-v1",
+  "notice": "합성 평가 자료. 전화번호·이메일·이름은 마스킹 확인용 가짜 값입니다.",
+  "splits": {
+    "compare": "기준값 비교·보정용. 반복 사용 가능",
+    "confirm": "확인용. 기준값 확정 후 한 번만 적용, 이 자료로 조정 금지"
+  },
+  "types": {
+    "paraphrase": "정답 문서 제목 단어를 쓰지 않은 일상 표현",
+    "legal_term": "법률 용어·문서 제목 단어를 쓴 표현",
+    "pii": "합성 개인정보 포함. 검색 전 마스킹 확인용",
+    "no_evidence": "10개 안내문이 다루지 않는 주제. 정답 없음"
+  },
+  "items": [
+    {"id": "C01", "split": "compare", "type": "paraphrase", "expected": ["GUIDE-001"], "intake": {"clientName": "합성 의뢰인", "caseType": "CIVIL", "coreStatement": "이사 나온 지 두 달인데 집주인이 맡겨 둔 돈을 아직 안 돌려줘요.", "desiredNextStep": "돈을 돌려받으려면 무엇을 준비해야 하는지 알고 싶어요"}},
+    {"id": "C02", "split": "compare", "type": "legal_term", "expected": ["GUIDE-001"], "intake": {"clientName": "합성 의뢰인", "caseType": "CIVIL", "coreStatement": "임대차 계약 만료 후 보증금 반환이 지연되고 있고 확정일자는 받아 두었습니다.", "desiredNextStep": "분쟁조정이나 소송 절차를 알고 싶습니다"}},
+    {"id": "C03", "split": "compare", "type": "paraphrase", "expected": ["GUIDE-002"], "intake": {"clientName": "합성 의뢰인", "caseType": "CRIMINAL", "coreStatement": "계약할 때 집에 대출이 잔뜩 잡혀 있다는 걸 숨겼고 같은 건물 세입자들도 당했어요.", "desiredNextStep": "처벌을 원합니다"}},
+    {"id": "C04", "split": "compare", "type": "legal_term", "expected": ["GUIDE-002"], "intake": {"clientName": "합성 의뢰인", "caseType": "CRIMINAL", "coreStatement": "전세사기로 의심되어 임대인과 중개인을 고소하려고 합니다.", "desiredNextStep": "고소장에 넣을 증거를 정리하고 싶어요"}},
+    {"id": "C05", "split": "compare", "type": "paraphrase", "expected": ["GUIDE-003"], "intake": {"clientName": "합성 의뢰인", "caseType": "CIVIL", "coreStatement": "석 달째 월급이 안 들어오고 사장님은 조금만 기다리라고만 해요.", "desiredNextStep": "밀린 돈을 받는 방법이 궁금해요"}},
+    {"id": "C06", "split": "compare", "type": "legal_term", "expected": ["GUIDE-003"], "intake": {"clientName": "합성 의뢰인", "caseType": "CIVIL", "coreStatement": "퇴사 후 퇴직금이 미지급되어 노동청 진정을 고려하고 있습니다.", "desiredNextStep": null}},
+    {"id": "C07", "split": "compare", "type": "paraphrase", "expected": ["GUIDE-004"], "intake": {"clientName": "합성 의뢰인", "caseType": "OTHER", "coreStatement": "팀장이 내일부터 나오지 말라고 문자로 통보했어요. 이유도 제대로 듣지 못했어요.", "desiredNextStep": "다시 일할 수 있는지 알고 싶어요"}},
+    {"id": "C08", "split": "compare", "type": "paraphrase", "expected": ["GUIDE-005"], "intake": {"clientName": "합성 의뢰인", "caseType": "FAMILY", "coreStatement": "남편과 더는 같이 살 수 없을 것 같아 헤어지는 절차를 알아보고 있어요.", "desiredNextStep": "재산과 아이 문제를 어떻게 정하는지 궁금해요"}},
+    {"id": "C09", "split": "compare", "type": "legal_term", "expected": ["GUIDE-006"], "intake": {"clientName": "합성 의뢰인", "caseType": "FAMILY", "coreStatement": "이혼 후 전 배우자가 양육비를 1년째 지급하지 않고 있습니다.", "desiredNextStep": "이행 확보 절차를 알고 싶습니다"}},
+    {"id": "C10", "split": "compare", "type": "paraphrase", "expected": ["GUIDE-006"], "intake": {"clientName": "합성 의뢰인", "caseType": "FAMILY", "coreStatement": "헤어진 뒤 아이 아빠가 아이를 보러 오는 날을 자꾸 어기고 생활비도 안 보내요.", "desiredNextStep": null}},
+    {"id": "C11", "split": "compare", "type": "paraphrase", "expected": ["GUIDE-007"], "intake": {"clientName": "합성 의뢰인", "caseType": "CRIMINAL", "coreStatement": "술집에서 처음 본 사람에게 맞아서 코뼈가 부러졌어요.", "desiredNextStep": "처벌받게 하고 싶어요"}},
+    {"id": "C12", "split": "compare", "type": "legal_term", "expected": ["GUIDE-008"], "intake": {"clientName": "합성 의뢰인", "caseType": "CIVIL", "coreStatement": "교통사고 과실 비율을 보험사가 7대3으로 제시했는데 동의하기 어렵습니다.", "desiredNextStep": "손해배상 항목도 알고 싶어요"}},
+    {"id": "C13", "split": "compare", "type": "pii", "expected": ["GUIDE-009"], "intake": {"clientName": "합성 의뢰인", "caseType": "OTHER", "coreStatement": "인터넷에서 산 패딩이 사진과 달라 환불을 요청했는데 거절당했어요. 연락처 010-1234-5678", "desiredNextStep": "연락은 test@example.com으로 주세요"}},
+    {"id": "C14", "split": "compare", "type": "pii", "expected": ["GUIDE-010"], "intake": {"clientName": "합성 의뢰인", "caseType": "CIVIL", "coreStatement": "친구에게 빌려준 500만 원을 못 받고 있어요. 제 번호는 010-9876-5432입니다.", "desiredNextStep": null}},
+    {"id": "C15", "split": "compare", "type": "no_evidence", "expected": [], "intake": {"clientName": "합성 의뢰인", "caseType": "OTHER", "coreStatement": "특허 출원을 하려는데 비슷한 기술이 이미 있는지 확인하는 방법이 궁금합니다.", "desiredNextStep": null}},
+    {"id": "C16", "split": "compare", "type": "no_evidence", "expected": [], "intake": {"clientName": "합성 의뢰인", "caseType": "FAMILY", "coreStatement": "아버지가 돌아가셨는데 빚이 더 많아 상속을 포기하려고 합니다.", "desiredNextStep": "기한과 절차를 알고 싶어요"}},
+    {"id": "C17", "split": "compare", "type": "no_evidence", "expected": [], "intake": {"clientName": "합성 의뢰인", "caseType": "CIVIL", "coreStatement": "수술 뒤 후유증이 생겨 병원의 의료 과실을 따지고 싶습니다.", "desiredNextStep": null}},
+    {"id": "C18", "split": "compare", "type": "no_evidence", "expected": [], "intake": {"clientName": "합성 의뢰인", "caseType": "OTHER", "coreStatement": "외국인 배우자의 체류 비자를 연장하는 방법을 알고 싶습니다.", "desiredNextStep": null}},
+    {"id": "C19", "split": "compare", "type": "no_evidence", "expected": [], "intake": {"clientName": "합성 의뢰인", "caseType": "OTHER", "coreStatement": "아이가 학교에서 따돌림을 당하고 있어 학교폭력 심의 절차를 알고 싶습니다.", "desiredNextStep": null}},
+    {"id": "C20", "split": "compare", "type": "no_evidence", "expected": [], "intake": {"clientName": "합성 의뢰인", "caseType": "CIVIL", "coreStatement": "새로 지은 아파트에 물이 새는데 시공사가 하자 보수를 계속 미루고 있습니다.", "desiredNextStep": null}},
+    {"id": "K01", "split": "confirm", "type": "paraphrase", "expected": ["GUIDE-001"], "intake": {"clientName": "합성 의뢰인", "caseType": "CIVIL", "coreStatement": "전세 기간이 끝났는데 집주인이 다음 세입자를 구해야 돈을 준다고 해요.", "desiredNextStep": null}},
+    {"id": "K02", "split": "confirm", "type": "paraphrase", "expected": ["GUIDE-004"], "intake": {"clientName": "합성 의뢰인", "caseType": "OTHER", "coreStatement": "회사에서 사직서를 억지로 쓰게 하고 그만두게 했어요.", "desiredNextStep": "다툴 수 있는지 궁금해요"}},
+    {"id": "K03", "split": "confirm", "type": "paraphrase", "expected": ["GUIDE-008"], "intake": {"clientName": "합성 의뢰인", "caseType": "CIVIL", "coreStatement": "지난주 신호 대기 중에 뒤차가 들이받아 목과 허리를 다쳤어요.", "desiredNextStep": "보험사와 합의하기 전에 알아야 할 것"}},
+    {"id": "K04", "split": "confirm", "type": "legal_term", "expected": ["GUIDE-010"], "intake": {"clientName": "합성 의뢰인", "caseType": "CIVIL", "coreStatement": "차용증 없이 계좌로 대여금을 보냈는데 상대가 증여라고 주장합니다.", "desiredNextStep": "지급명령 절차가 궁금합니다"}},
+    {"id": "K05", "split": "confirm", "type": "legal_term", "expected": ["GUIDE-005"], "intake": {"clientName": "합성 의뢰인", "caseType": "FAMILY", "coreStatement": "협의이혼을 하려는데 재산분할과 친권을 어떻게 정해야 할지 모르겠습니다.", "desiredNextStep": null}},
+    {"id": "K06", "split": "confirm", "type": "pii", "expected": ["GUIDE-009"], "intake": {"clientName": "합성 의뢰인", "caseType": "OTHER", "coreStatement": "헬스장 1년 이용권을 해지하려는데 위약금이 너무 많다고 합니다. 홍길동 010-2222-3333", "desiredNextStep": null}},
+    {"id": "K07", "split": "confirm", "type": "no_evidence", "expected": [], "intake": {"clientName": "합성 의뢰인", "caseType": "OTHER", "coreStatement": "회사 상표를 등록하려는데 비슷한 이름이 이미 있는지 걱정됩니다.", "desiredNextStep": null}},
+    {"id": "K08", "split": "confirm", "type": "no_evidence", "expected": [], "intake": {"clientName": "합성 의뢰인", "caseType": "OTHER", "coreStatement": "세무서에서 종합소득세를 더 내라는 통지를 받았습니다.", "desiredNextStep": null}},
+    {"id": "K09", "split": "confirm", "type": "no_evidence", "expected": [], "intake": {"clientName": "합성 의뢰인", "caseType": "CIVIL", "coreStatement": "이웃집 개에게 물려서 치료를 받았는데 견주가 연락을 피합니다.", "desiredNextStep": null}},
+    {"id": "K10", "split": "confirm", "type": "no_evidence", "expected": [], "intake": {"clientName": "합성 의뢰인", "caseType": "CRIMINAL", "coreStatement": "음주운전으로 적발되어 형사 처벌과 면허 취소가 걱정됩니다.", "desiredNextStep": null}}
+  ]
+}

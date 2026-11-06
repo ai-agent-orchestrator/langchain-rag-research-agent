@@ -2,6 +2,8 @@
 
 [English](README.md) · [용어·예시·확인 문제로 공부하기](docs/study-guide.ko.md)
 
+> **2026-11-06 방향 제안:** 이 저장소를 법률 검색·리서치에서 재사용하는 Python 백엔드 모듈(안정판 `stable` + 실험판 `lab`)로 넓히는 설계안이 있습니다. [모듈 설계안](docs/MODULE_DESIGN.ko.md) · 대표 확정 전 초안이며 아래 하이브리드 설계는 그대로 유지합니다.
+
 ### Spring Boot Control Plane + Python FastAPI + memvid
 
 > **Spring이 권한과 예산을 통제하고, Python이 실행하며, memvid가 사건의 기억을 보관합니다.**

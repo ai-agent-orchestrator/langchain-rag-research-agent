@@ -1,0 +1,22 @@
+{
+  "collectionId": "synthetic-guides-v1",
+  "notice": "합성 학습 자료이며 법률 자문이 아닙니다. 실제 의뢰인 데이터·실명·실제 사건을 포함하지 않습니다.",
+  "sourceVersion": "v1",
+  "similarPairs": [
+    ["GUIDE-001", "GUIDE-002"],
+    ["GUIDE-003", "GUIDE-004"],
+    ["GUIDE-005", "GUIDE-006"]
+  ],
+  "documents": [
+    {"documentId": "GUIDE-001", "file": "guides/GUIDE-001.md", "caseType": "CIVIL", "title": "임대차 보증금 반환 상담 준비", "titleKeywords": ["임대차", "보증금", "반환"]},
+    {"documentId": "GUIDE-002", "file": "guides/GUIDE-002.md", "caseType": "CRIMINAL", "title": "전세사기 피해 고소 준비", "titleKeywords": ["전세사기", "피해", "고소"]},
+    {"documentId": "GUIDE-003", "file": "guides/GUIDE-003.md", "caseType": "CIVIL", "title": "임금체불·퇴직금 미지급 상담 준비", "titleKeywords": ["임금체불", "퇴직금", "미지급"]},
+    {"documentId": "GUIDE-004", "file": "guides/GUIDE-004.md", "caseType": "OTHER", "title": "부당해고 구제신청 상담 준비", "titleKeywords": ["부당해고", "구제신청"]},
+    {"documentId": "GUIDE-005", "file": "guides/GUIDE-005.md", "caseType": "FAMILY", "title": "이혼 상담 준비", "titleKeywords": ["이혼"]},
+    {"documentId": "GUIDE-006", "file": "guides/GUIDE-006.md", "caseType": "FAMILY", "title": "양육비·면접교섭 상담 준비", "titleKeywords": ["양육비", "면접교섭"]},
+    {"documentId": "GUIDE-007", "file": "guides/GUIDE-007.md", "caseType": "CRIMINAL", "title": "폭행 피해 고소 준비", "titleKeywords": ["폭행", "피해", "고소"]},
+    {"documentId": "GUIDE-008", "file": "guides/GUIDE-008.md", "caseType": "CIVIL", "title": "교통사고 손해배상 상담 준비", "titleKeywords": ["교통사고", "손해배상"]},
+    {"documentId": "GUIDE-009", "file": "guides/GUIDE-009.md", "caseType": "OTHER", "title": "소비자 환불 분쟁 상담 준비", "titleKeywords": ["소비자", "환불", "분쟁"]},
+    {"documentId": "GUIDE-010", "file": "guides/GUIDE-010.md", "caseType": "CIVIL", "title": "대여금 반환 상담 준비", "titleKeywords": ["대여금", "반환"]}
+  ]
+}
