@@ -11,7 +11,7 @@
 - `legal_term`: 조문 제목과 같은 단어를 쓴 짧은 질의 → 키워드처럼 쉬운 경우입니다.
 - 헷갈리는 짝: 제3조(예약 취소) ↔ 제4조(환불), 제6조(수집·이용) ↔ 제7조(보관·파기), 제1조(목적) ↔ 제9조(AI 안내의 한계).
 
-비교 실행:
+비교 실행(설계 단계에서는 실행하지 않음 · 명령은 Draft PR #5의 프로토타입 기준):
 
 ```bash
 python scripts/compare_embedders.py --golden data/golden_set.json --corpus data/articles.json --models fake
