@@ -2,6 +2,9 @@
 
 [Korean study edition](README.ko.md)
 
+
+> **2026-11-06 direction proposal:** a design to grow this repository into a reusable Python backend module (a `stable` tier plus an experimental `lab`) for legal search and research. [Module design (Korean)](docs/MODULE_DESIGN.ko.md). Draft awaiting the owner's decision; the hybrid design below is unchanged.
+
 ### Spring Boot Control Plane + Python FastAPI + memvid
 
 **Spring authorizes. Python executes. memvid remembers.**
