@@ -1,0 +1,27 @@
+flowchart TB
+  S(["START<br/>raw_draft · task · knobs"]) --> GI["Guard_Input<br/>공유 마스킹 · 입력 정책<br/>주입 구간 제외·보고"]
+  GI --> GB{"정책 차단?"}
+  GB -->|"예"| B1["BLOCKED<br/>record_risk_event<br/>생성 호출 0회"]
+  GB -->|"아니오"| CI["Chunk_Ingest<br/>구조 분할 · 온톨로지 5분류<br/>인과 링크 연결"]
+  CI --> RT["Retrieve<br/>희소+밀집 → 노브① 임계값<br/>상위 30 → Rerank<br/>질의 없음: 분류 중심 비교"]
+  CI --> PP["Protected_Pick<br/>골든 키워드 · Constraint 구간<br/>임계값 우회 · 노브② ≥ 0.5"]
+  RT --> RG{"근거 충분?"}
+  RG -->|"아니오"| B2["REQUEST_MORE<br/>추가 자료 요청<br/>생성 호출 0회"]
+  RG -->|"예"| EF["Edge_Filter<br/>엣지 점수 × 노브②<br/>보호 항목 표시"]
+  PP --> EF
+  EF --> NEXT(["다음 장 · Token_Check로"])
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class S,NEXT result;
+  class GI,PP guard;
+  class CI architecture;
+  class RT,EF engineering;
+  class GB,RG control;
+  class B1,B2 stop;

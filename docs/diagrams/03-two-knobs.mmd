@@ -1,38 +1,32 @@
 flowchart TB
   subgraph P["프리셋 · 노브 두 값의 조합"]
     direction LR
-    P1["소송·증거 타격<br/>유사도 High · 보존 High"]
-    P2["지식 사업·AI 리서치<br/>유사도 Low · 보존 High"]
-    P3["법률 검색·안내 근거<br/>High · Mid (제안)"]
-    P4["일반 요약<br/>Low · Low (제안)"]
+    P1["소송·증거 타격<br/>유사도 High<br/>보존 High"] ~~~ P2["지식 사업·리서치<br/>유사도 Low<br/>보존 High"] ~~~ P3["법률 검색<br/>High · Mid (제안)"] ~~~ P4["일반 요약<br/>Low · Low (제안)"]
   end
   subgraph K["사용자 노브 2개 · 0.0 ~ 1.0 · 서로 독립"]
     direction LR
-    K1["노브① 창 · 유사도 임계값<br/>similarity"]
-    K2["노브② 방패 · 골든룰 보존<br/>edge_weight"]
+    K1["노브① 창<br/>유사도 임계값"] ~~~ K2["노브② 방패<br/>골든룰 보존 가중치"]
   end
-  subgraph M1G["노브① 내부 매핑"]
+  subgraph MAP["내부 매핑 · 버전으로 고정"]
     direction LR
-    M1["임계값 τ<br/>골든셋 보정값<br/>모델 identity별<br/>고정 0.85 아님"]
-    M2["후보 폭 k<br/>Low 30 → High 8"]
+    subgraph MB["노브② 가 바꾸는 것"]
+      direction TB
+      M3["최종 점수<br/>(1−w)·관련도 + w·엣지"]
+      M4["클리셰 감점 · 앞 배치"]
+      M5["낮음: 읽기 좋은 요약 허용<br/>높음: 추출 전용"]
+    end
+    subgraph MA["노브① 이 바꾸는 것"]
+      direction TB
+      M1["임계값 τ<br/>골든셋 보정값<br/>고정 0.85 아님"]
+      M2["후보 폭 k<br/>Low 30 → High 8"]
+    end
   end
-  subgraph M2G["노브② 내부 매핑"]
-    direction LR
-    M3["최종 점수<br/>(1−w)·관련도 + w·엣지"]
-    M4["클리셰 감점 강도<br/>골든 프레이즈 앞 배치"]
-    M5["w 낮음: 온톨로지 순 요약 허용<br/>w 높음: 추출 전용<br/>재작성 금지"]
-  end
-  P --> K
-  K1 --> M1G
-  K2 --> M2G
-  FIX["노브가 아닌 고정 설정<br/>토큰 예산 = 백본 모델 창<br/>보호 규칙 · 점수 구성 가중치(버전)"]
-  M1G -.-> FIX
-  M2G -.-> FIX
+  FIX["노브가 아닌 고정 설정<br/>토큰 예산 = 백본 모델 창 · 보호 규칙 · 점수 구성 가중치 (버전)"]
+  P --> K --> MAP -.-> FIX
   classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
   classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
   classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
   classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
-  classDef java fill:#1f3320,stroke:#8fcf86,color:#e6edf6;
   classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
   classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
   classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
@@ -46,5 +40,6 @@ flowchart TB
   class FIX stop;
   style P fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
   style K fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
-  style M1G fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
-  style M2G fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style MAP fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style MA fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style MB fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb

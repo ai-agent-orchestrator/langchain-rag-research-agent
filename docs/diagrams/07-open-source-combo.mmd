@@ -1,0 +1,40 @@
+flowchart TB
+  SRC["원본 드래프트 30~40쪽"]
+  subgraph A["A · 그대로 넣기 (기준선)"]
+    direction LR
+    A1["작은 모델에 통째 입력<br/>창 초과 시 앞부분만<br/>중간은 놓치기 쉬움"] --> A2["평평한 요약<br/>클리셰는 남고<br/>독창 엣지는 탈락"]
+  end
+  subgraph B1["B-1 · EQUALIZER로 브리프 만들기"]
+    direction LR
+    B11["온톨로지 · 검색 · 노브<br/>보호 항목 지정"] --> B12["Token Diet<br/>예산 안으로"] --> B13["엣지 브리프<br/>지시 블록 + 자료 블록"]
+  end
+  subgraph B2["B-2 · 로컬 모델로 요약하고 검사"]
+    direction LR
+    B21["로컬 모델<br/>Llama · Qwen 등<br/>Generator 뒤에 교체 가능"] --> B22["출력 검사<br/>새 숫자·ID 거절<br/>출처 ID는 부분집합"] --> B23["요약 + 출처 ID"]
+  end
+  EV["평가 · 같은 골든 엣지 목록으로<br/>엣지 회수율을 A와 B에서 비교"]
+  SRC --> A
+  SRC --> B1 --> B2
+  A2 -.-> EV
+  B23 -.-> EV
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class SRC python;
+  class A1 worker;
+  class A2 stop;
+  class B11,B13 architecture;
+  class B12 worker;
+  class B21 worker;
+  class B22 guard;
+  class B23 result;
+  class EV control;
+  style A fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style B1 fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style B2 fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb

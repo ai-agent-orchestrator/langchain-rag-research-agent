@@ -4,7 +4,9 @@ flowchart TB
   GI --> GB{"정책 차단?"}
   GB -->|"예"| B1["BLOCKED<br/>record_risk_event<br/>생성 호출 0회"]
   GB -->|"아니오"| CI["Chunk_Ingest<br/>구조 분할 · 온톨로지 5분류<br/>인과 링크 연결"]
-  CI --> RT["Retrieve<br/>희소+밀집 → 노브① 임계값<br/>상위 30 → Rerank"]
+  CI --> PP["Protected_Pick<br/>골든 키워드·Constraint 구간<br/>임계값 우회 · 노브② ≥ 0.5"]
+  PP --> EF
+  CI --> RT["Retrieve<br/>희소+밀집 → 노브① 임계값<br/>상위 30 → Rerank<br/>질의 없음: 분류 중심 비교"]
   RT --> RG{"근거 충분?"}
   RG -->|"아니오"| B2["REQUEST_MORE<br/>추가 자료 요청<br/>생성 호출 0회"]
   RG -->|"예"| EF["Edge_Filter<br/>엣지 점수 × 노브②<br/>보호 항목 표시"]
@@ -33,4 +35,5 @@ flowchart TB
   class RT,EF engineering;
   class TD,FS,GEN worker;
   class GB,RG,TC,DC control;
+  class PP guard;
   class B1,B2,B3 stop;
