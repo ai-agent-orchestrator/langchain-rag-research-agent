@@ -1,0 +1,39 @@
+flowchart TB
+  Q["masked task description · question"] --> SP["sparse · BM25 / TF-IDF<br/>particle stripping · golden-keyword boost"]
+  Q --> DN["dense · E5 default (local)<br/>text-embedding-3-large optional"]
+  SP --> FU["fusion · RRF or weighted sum<br/>keep segment / source IDs"]
+  DN --> FU
+  FU --> GT{"passes knob 1 threshold τ?"}
+  ON["ontology segments<br/>Constraint · golden-keyword match"] --> PRT["protected-candidate path<br/>bypasses threshold<br/>only when knob 2 ≥ 0.5"]
+  GT -->|"none"| EM["EMPTY<br/>BELOW_THRESHOLD"]
+  GT -->|"pass"| TOP["top 30 candidates + protected"]
+  PRT --> TOP
+  TOP --> RR["rerank<br/>BGE-Reranker default (local)<br/>Cohere optional · relevance only"]
+  RR --> EC
+  subgraph EC["EDGE-SCORE COMPONENTS · RECORDED PER CHUNK"]
+    direction LR
+    E1["rarity<br/>IDF"] ~~~ E2["golden<br/>phrase"] ~~~ E3["concreteness<br/>numbers · dates"] ~~~ E4["causal · reversal<br/>therefore · whereas"] ~~~ E5["ontology<br/>priority"] ~~~ E6["cliché<br/>penalty"]
+  end
+  EC --> SC["final score = (1−w)·relevance + w·edge<br/>w = knob 2"]
+  RR -.->|"relevance"| SC
+  SC --> MMR["MMR diversity · dedupe"] --> OUT["Edge_Filter result<br/>filtered_context + protected items"]
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class Q python;
+  class SP,DN,FU,TOP,MMR engineering;
+  class GT control;
+  class EM stop;
+  class RR worker;
+  class SC architecture;
+  class E1,E2,E3,E4,E5 architecture;
+  class E6,PRT guard;
+  class ON architecture;
+  class OUT result;
+  style EC fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb

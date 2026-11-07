@@ -1,0 +1,32 @@
+flowchart TB
+  SRC["INPUT · 40-page draft and a question"]
+  subgraph SA["STEP A · PREPARE AND RETRIEVE"]
+    direction LR
+    P1["① ontology labels<br/>5-slot filing box<br/>[LangChain parser]"] --> P2["② embedding + vector DB<br/>sentences as coordinates, a coordinate drawer<br/>[E5 · memvid]"] --> P3["③ search · similarity<br/>keywords + meaning, fetch the closest<br/>[BM25 · cosine · reranker]"]
+  end
+  subgraph SB["STEP B · SELECT, TRIM, SUMMARIZE"]
+    direction LR
+    P4["④ golden-rule score<br/>highlighter: edge vs cliché<br/>[knob 2]"] --> P5["⑤ Token Diet<br/>trim to the desk size<br/>[LangGraph loop]"] --> P6["⑥ local-model summary<br/>Llama etc.<br/>[LangChain chain]"]
+  end
+  LS["LangSmith · records and grades every step<br/>where did the edge drop out · zero upload while serving"]
+  SRC --> SA --> SB
+  SA -.-> LS
+  SB -.-> LS
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class SRC python;
+  class P1 architecture;
+  class P2 python;
+  class P3 engineering;
+  class P4 control;
+  class P5,P6 worker;
+  class LS guard;
+  style SA fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style SB fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
