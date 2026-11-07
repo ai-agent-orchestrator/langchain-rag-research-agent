@@ -1,0 +1,29 @@
+flowchart TB
+  ENG["EDGE EQUALIZER ENGINE · REUSABLE LIBRARY<br/>build_brief · search · build_graph"]
+  subgraph UC["USE CASES"]
+    direction LR
+    D1["research tool<br/>Draft to Done · feed filter<br/>spear Low · shield High<br/>protect: hypotheses · constraints · numbers"] ~~~ D2["case-law · statute search<br/>Legal Intake follow-up<br/>spear High · shield Mid<br/>protect: case no. · articles · holdings"] ~~~ D3["consultation-note lookup<br/>clinician aid · local only<br/>spear Mid · shield High<br/>protect: risk signals · patient wording"] ~~~ D4["other reuse<br/>papers · internal specs<br/>FAQ · decision logs"]
+  end
+  subgraph PRE["PRECONDITIONS"]
+    direction LR
+    C1["validate on synthetic data<br/>golden-edge list"] ~~~ C2["public sources · license<br/>citation-ID check<br/>mark overruled cases"] ~~~ C3["sensitive data · legal/medical review<br/>no diagnosis generation<br/>no external transfer"] ~~~ C4["per-domain golden set<br/>write protection rules"]
+  end
+  ENG --> UC --> PRE
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class ENG worker;
+  class D1 result;
+  class D2 engineering;
+  class D3 guard;
+  class D4 python;
+  class C1,C2,C4 control;
+  class C3 stop;
+  style UC fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style PRE fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb

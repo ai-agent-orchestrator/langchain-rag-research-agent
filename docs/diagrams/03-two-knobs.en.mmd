@@ -1,0 +1,45 @@
+flowchart TB
+  subgraph P["PRESETS · COMBINATIONS OF THE TWO KNOBS"]
+    direction LR
+    P1["litigation · evidence strike<br/>spear High<br/>shield High"] ~~~ P2["knowledge work · research<br/>spear Low<br/>shield High"] ~~~ P3["legal lookup<br/>High · Mid (proposed)"] ~~~ P4["general summary<br/>Low · Low (proposed)"]
+  end
+  subgraph K["TWO USER KNOBS · 0.0 – 1.0 · INDEPENDENT"]
+    direction LR
+    K1["knob 1 · spear<br/>similarity threshold"] ~~~ K2["knob 2 · shield<br/>golden-rule edge weight"]
+  end
+  subgraph MAP["INTERNAL MAPPING · FIXED BY VERSION"]
+    direction LR
+    subgraph MB["WHAT KNOB 2 CHANGES"]
+      direction TB
+      M3["final score<br/>(1−w)·relevance + w·edge"]
+      M4["cliché penalty · front placement"]
+      M5["low: readable summary allowed<br/>high: extract-only"]
+    end
+    subgraph MA["WHAT KNOB 1 CHANGES"]
+      direction TB
+      M1["threshold τ<br/>calibrated on golden set<br/>not a fixed 0.85"]
+      M2["candidate width k<br/>Low 30 → High 8"]
+    end
+  end
+  FIX["Fixed, non-knob settings<br/>token budget = model window · protection rules · score weights (versioned)"]
+  P --> K --> MAP -.-> FIX
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class K1,K2 control;
+  class M1,M2 engineering;
+  class M3,M4,M5 architecture;
+  class P1,P2 result;
+  class P3,P4 python;
+  class FIX stop;
+  style P fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style K fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style MAP fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style MA fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style MB fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
