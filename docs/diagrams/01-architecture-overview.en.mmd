@@ -1,0 +1,53 @@
+flowchart TB
+  subgraph IN["INPUT · SYNTHETIC DATA ONLY IN THE PUBLIC REPO"]
+    direction LR
+    I1["30–40 page draft<br/>chats · specs"] ~~~ I2["task / question<br/>(none = whole-draft mode)"] ~~~ I3["two knobs + preset<br/>similarity · golden rule"]
+  end
+  subgraph SH["SHARED SECURITY · LEGAL-INTAKE SECURITY ACTIONS"]
+    direction LR
+    G1["mask_personal_data<br/>before store · embed · trace"] ~~~ G2["check_input_policy<br/>injection · jailbreak · secrets"]
+  end
+  subgraph CA["ENGINE A · PREPARE AND RETRIEVE"]
+    direction LR
+    P["ingest<br/>structure split + ontology"] --> X["index<br/>BM25 + E5<br/>memvid"] --> R["retrieve<br/>knob 1 threshold<br/>top 30 → rerank"]
+  end
+  subgraph CB["ENGINE B · SELECT, TRIM, COMPOSE"]
+    direction LR
+    E["edge<br/>edge score<br/>knob 2 · protected path"] --> LG["graph · LangGraph<br/>Token_Check<br/>Token_Diet"] --> C["compose<br/>golden phrases →<br/>logic skeleton → quotes"]
+  end
+  subgraph OBS["OBSERVE · LANGSMITH"]
+    direction LR
+    T["Tracing<br/>per-node I/O"] ~~~ EV["Evaluators<br/>edge recall · hallucination"]
+  end
+  subgraph OUT["REUSE"]
+    direction LR
+    U1["research<br/>multi-agent"] ~~~ U2["litigation · evidence<br/>(local only)"] ~~~ U3["case-law · statute<br/>search"] ~~~ U4["Legal Intake<br/>guidance sources"]
+  end
+  IN --> SH --> CA --> CB --> OUT
+  CB -.-> OBS
+  STOP["Zero external transfer by default · external embedding, rerank and remote trace only when explicitly enabled"]
+  OBS -.-> STOP
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class I1,I2 python;
+  class I3 control;
+  class G1,G2,T,EV guard;
+  class P,C architecture;
+  class X python;
+  class R,E engineering;
+  class LG worker;
+  class U1,U2,U3,U4 result;
+  class STOP stop;
+  style IN fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style SH fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style CA fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style CB fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style OBS fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style OUT fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb

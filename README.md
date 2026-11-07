@@ -7,7 +7,7 @@
 > **Status: design v1.0 in review.** The repository is being renamed from `python-memvid-guardrail`; its former hybrid (Spring Boot + FastAPI + memvid) content is preserved in [`docs/legacy/`](docs/legacy) and is moving to [spring-fastapi-async-refactor](https://github.com/ai-agent-orchestrator/spring-fastapi-async-refactor).
 > What exists today: an E5 + memvid retrieval evaluation (measured on synthetic data), a package skeleton, and a long-prompt brief prototype (fake embedder). **The Edge Equalizer itself is a design, not yet an implementation, and no real Llama or Qwen summarization quality has been measured.** Every number below is labelled *measured*, *prototype* or *example*.
 
-![Architecture overview](docs/diagrams/01-architecture-overview.png)
+![Architecture overview](docs/diagrams/01-architecture-overview.en.png)
 
 ## Why
 
@@ -17,7 +17,7 @@ This module sits in front of the model. It splits the draft by structure, retrie
 
 ## The Edge Equalizer (working name): two knobs
 
-![Two knobs](docs/diagrams/03-two-knobs.png)
+![Two knobs](docs/diagrams/03-two-knobs.en.png)
 
 | Knob | Meaning | High | Low |
 | --- | --- | --- | --- |
@@ -45,8 +45,8 @@ Design decisions made in review (details in [DESIGN_REVIEW](docs/DESIGN_REVIEW.k
 
 LangGraph nodes: `Guard_Input → Chunk_Ingest → Retrieve / Protected_Pick → Edge_Filter → Token_Check ⇄ Token_Diet → Final_Synthesize → Output_Check`.
 
-![Search half](docs/diagrams/02a-graph-search.png)
-![Token diet half](docs/diagrams/02b-graph-diet.png)
+![Search half](docs/diagrams/02a-graph-search.en.png)
+![Token diet half](docs/diagrams/02b-graph-diet.en.png)
 
 - Hybrid retrieval: BM25/TF-IDF + local multilingual E5 vectors fused by RRF, top 30, local reranker (BGE by default).
 - Ontology (5 classes): `Core_Hypothesis`, `Tech_Architecture`, `Market_Positioning`, `Constraint_Guardrail`, `Action_Item` (+ internal `Unclassified`, never deleted). The parser labels with offsets and never rewrites text.
@@ -79,7 +79,7 @@ Synthetic, small samples: tendencies, not proof.
 
 ## Where it can be reused
 
-![Use cases](docs/diagrams/08-use-cases.png)
+![Use cases](docs/diagrams/08-use-cases.en.png)
 
 Research tool (Draft to Done), public case-law and statute lookup for Legal Intake, clinician-side lookup over consultation notes, paper and spec search. The last two are the most sensitive and need legal and clinical review, local-only operation, no diagnosis or legal-judgment generation, and synthetic-only development. See the study guide.
 

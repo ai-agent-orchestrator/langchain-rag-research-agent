@@ -1,0 +1,27 @@
+flowchart TB
+  START(["previous figure · Edge_Filter result<br/>filtered_context + protected items"]) --> TC{"Token_Check<br/>tokens ≤ model budget?"}
+  TC -->|"fits"| FS["Final_Synthesize<br/>golden phrases → logic skeleton<br/>→ source quotes (source IDs)"]
+  TC -->|"over"| TD["Token_Diet<br/>drop one unprotected chunk,<br/>lowest-priority ontology first"]
+  TD --> DC{"more to drop?<br/>within loop cap?"}
+  DC -->|"yes · re-check"| TC
+  DC -->|"no"| B3["BUDGET_PROTECTED_OVERFLOW<br/>only protected items left<br/>report, do not cut · human decides"]
+  FS --> OC["Output_Check<br/>no new numbers/IDs · sources ⊆ input<br/>final masking"]
+  OC --> F(["final_prompt_input<br/>→ local model (Llama etc.)"])
+  F -.->|"optional"| GEN["Generate<br/>summarize · re-check output"]
+  LS["LangSmith Tracing<br/>all nodes · allow-listed fields only"]
+  TD -.-> LS
+  FS -.-> LS
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class START,F result;
+  class OC,LS guard;
+  class TD,FS,GEN worker;
+  class TC,DC control;
+  class B3 stop;

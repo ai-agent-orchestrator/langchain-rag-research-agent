@@ -1,0 +1,27 @@
+flowchart TB
+  S(["START<br/>raw_draft · task · knobs"]) --> GI["Guard_Input<br/>shared masking · input policy<br/>injected segments excluded + reported"]
+  GI --> GB{"policy blocked?"}
+  GB -->|"yes"| B1["BLOCKED<br/>record_risk_event<br/>zero generation calls"]
+  GB -->|"no"| CI["Chunk_Ingest<br/>structure split · 5-class ontology<br/>causal links"]
+  CI --> RT["Retrieve<br/>sparse + dense → knob 1 threshold<br/>top 30 → rerank<br/>no query: class-wise comparison"]
+  CI --> PP["Protected_Pick<br/>golden keywords · Constraint segments<br/>bypass threshold · knob 2 ≥ 0.5"]
+  RT --> RG{"enough evidence?"}
+  RG -->|"no"| B2["REQUEST_MORE<br/>ask for more material<br/>zero generation calls"]
+  RG -->|"yes"| EF["Edge_Filter<br/>edge score × knob 2<br/>mark protected items"]
+  PP --> EF
+  EF --> NEXT(["next figure · to Token_Check"])
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class S,NEXT result;
+  class GI,PP guard;
+  class CI architecture;
+  class RT,EF engineering;
+  class GB,RG control;
+  class B1,B2 stop;
