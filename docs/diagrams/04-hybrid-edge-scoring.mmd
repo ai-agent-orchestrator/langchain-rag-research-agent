@@ -1,0 +1,44 @@
+flowchart TB
+  Q["마스킹된 작업 설명 · 질문"] --> SP["희소 · BM25 / TF-IDF<br/>조사 제거<br/>골든 키워드 사전 가점"]
+  Q --> DN["밀집 · E5 기본 (로컬)<br/>text-embedding-3-large<br/>선택"]
+  SP --> FU["융합 · RRF 또는 가중 합<br/>세그먼트·출처 ID 유지"]
+  DN --> FU
+  FU --> GT{"노브① 임계값 τ 통과?"}
+  GT -->|"없음"| EM["EMPTY<br/>BELOW_THRESHOLD"]
+  GT -->|"통과"| TOP["상위 30 후보"]
+  TOP --> RR["Rerank<br/>BGE-Reranker 기본 (로컬)<br/>Cohere Rerank 선택"]
+  RR --> ES["엣지 점수<br/>설명 가능한 구성요소"]
+  subgraph EC["엣지 점수 구성요소 · 청크마다 기록"]
+    direction LR
+    E1["희소성<br/>배경 코퍼스 대비 IDF"]
+    E2["골든 프레이즈<br/>사용자 사전 일치"]
+    E3["구체성<br/>숫자·날짜·금액<br/>좌표·ID·인용"]
+    E4["인과·반전 표지<br/>따라서·반면·하지만"]
+    E5["온톨로지 우선순위"]
+    E6["클리셰 감점<br/>진부 문장 예시와 유사도"]
+  end
+  ES --- EC
+  ES --> SC["최종 점수<br/>(1−w)·Rerank 관련도<br/>+ w·엣지 · w = 노브②"]
+  SC --> MMR["MMR 다양성 · 중복 묶음"]
+  MMR --> OUT["Edge_Filter 결과<br/>filtered_context + 보호 항목"]
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef java fill:#1f3320,stroke:#8fcf86,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class Q python;
+  class SP,DN,FU engineering;
+  class GT control;
+  class EM stop;
+  class TOP,MMR engineering;
+  class RR worker;
+  class ES,SC architecture;
+  class E1,E2,E3,E4,E5 architecture;
+  class E6 guard;
+  class OUT result;
+  style EC fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb

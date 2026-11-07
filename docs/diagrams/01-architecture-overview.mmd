@@ -1,0 +1,73 @@
+flowchart TB
+  subgraph IN["입력 · 공개 저장소에는 합성 자료만"]
+    direction LR
+    I1["30~40쪽 원본 드래프트<br/>브레인스토밍 대화·명세"]
+    I2["작업 설명 · 질문<br/>(없으면 전체 드래프트 모드)"]
+    I3["노브 2개 + 프리셋<br/>유사도 · 골든룰 보존"]
+  end
+  subgraph SH["공유 보안 · LEGAL-INTAKE 보안 ACTION"]
+    direction LR
+    G1["mask_personal_data<br/>저장·임베딩·trace 전"]
+    G2["check_input_policy<br/>주입·jailbreak·secret"]
+  end
+  subgraph CORE["LANGCHAIN-RAG-RESEARCH-AGENT · 재사용 모듈"]
+    direction TB
+    P["ingest<br/>구조 분할 + 온톨로지 파서<br/>LCEL · PydanticOutputParser<br/>정규식"]
+    X["index · 희소-밀집 색인<br/>BM25/TF-IDF + E5<br/>memvid / NumPy"]
+    R["retrieve · 하이브리드 검색<br/>노브① 임계값<br/>상위 30 → Rerank"]
+    E["edge · 엣지 스코어링<br/>노브② 가중치 · 클리셰 감점"]
+    LG["graph<br/>LangGraph 오케스트레이터<br/>AgentState<br/>Token_Check · Token_Diet"]
+    C["compose · 최종 인풋 조립<br/>골든 프레이즈 → 논리 뼈대<br/>→ 원문 인용"]
+    P --> X --> R --> E --> LG --> C
+  end
+  subgraph OBS["OBSERVE · LANGSMITH"]
+    direction LR
+    T["Tracing<br/>노드별 입출력 · 생존 엣지"]
+    EV["Evaluators<br/>엣지 회수율 · 환각<br/>쌍 데이터셋"]
+  end
+  subgraph OUT["재사용처"]
+    direction LR
+    U1["리서치 multi-agent<br/>Llama 백본 인풋"]
+    U2["소송·증거 분석<br/>로컬 비공개 실행"]
+    U3["법률 검색 시범"]
+    U4["Legal Intake 안내 근거<br/>legal-intake 완료 후"]
+  end
+  I1 --> G1
+  I2 --> G2
+  G1 --> P
+  G2 --> R
+  I3 -.-> R
+  I3 -.-> E
+  C --> U1
+  C --> U2
+  C --> U3
+  C --> U4
+  LG -.-> T
+  C -.-> EV
+  STOP["외부 전송 0이 기본값<br/>외부 임베딩·Rerank·원격 trace<br/>명시적으로 켤 때만"]
+  OBS -.-> STOP
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef java fill:#1f3320,stroke:#8fcf86,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class I1,I2 python;
+  class I3 control;
+  class G1,G2 guard;
+  class P,C architecture;
+  class X python;
+  class R,E engineering;
+  class LG worker;
+  class T,EV guard;
+  class U1,U2,U3,U4 result;
+  class STOP stop;
+  style IN fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style SH fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style CORE fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style OBS fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style OUT fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb

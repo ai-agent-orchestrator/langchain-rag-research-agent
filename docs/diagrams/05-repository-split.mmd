@@ -1,0 +1,43 @@
+flowchart TB
+  subgraph A["① LEGAL-INTAKE-FASTAPI-LAB"]
+    direction LR
+    A1["접수·안내 Python action"]
+    A2["보안 action 9개<br/>마스킹·입력 정책 정본"]
+    A3["마케팅 강화 M01·M02"]
+  end
+  subgraph B["③ LANGCHAIN-RAG-RESEARCH-AGENT (구 python-memvid-guardrail)"]
+    direction LR
+    B1["① app/rag · rag-runtime<br/>scripts · fixtures · 증거"]
+    B2["기존 검색 설계 v0.2<br/>src · 골든셋 · 브리프"]
+    B3["엣지 보존 인풋 아키텍처<br/>노브 2개<br/>LangGraph · LangSmith"]
+  end
+  subgraph C["② SPRING-FASTAPI-ASYNC-REFACTOR"]
+    direction LR
+    C1["가상 스레드 · asyncio 리팩터<br/>A0~A5"]
+    C2["docs/hybrid/<br/>Spring 통제<br/>FastAPI + memvid"]
+  end
+  A2 -->|"마스킹·입력 정책 공유<br/>복사 금지"| B3
+  A -.->|"RAG 코드·문서 이전"| B1
+  B -.->|"하이브리드 문서<br/>PDF·다이어그램 이전"| C2
+  B -->|"재사용 라이브러리"| R1["리서치 multi-agent · Llama"]
+  B -->|"완료 후 연결 · API 추가 없음"| A1
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef java fill:#1f3320,stroke:#8fcf86,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class A1,A3 engineering;
+  class A2 guard;
+  class B1,B2 python;
+  class B3 worker;
+  class C1 engineering;
+  class C2 java;
+  class R1 result;
+  style A fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style B fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style C fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb

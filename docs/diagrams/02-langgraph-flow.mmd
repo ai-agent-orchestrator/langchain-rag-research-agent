@@ -1,0 +1,36 @@
+flowchart TB
+  S(["START<br/>raw_draft · task · knobs"]) --> GI["Guard_Input<br/>공유 마스킹 · 입력 정책<br/>주입 구간 제외·보고"]
+  S -.->|"모든 노드 실행 기록"| LS["LangSmith Tracing<br/>온톨로지 분할<br/>생존 엣지 문장<br/>허용 목록 필드만"]
+  GI --> GB{"정책 차단?"}
+  GB -->|"예"| B1["BLOCKED<br/>record_risk_event<br/>생성 호출 0회"]
+  GB -->|"아니오"| CI["Chunk_Ingest<br/>구조 분할 · 온톨로지 5분류<br/>인과 링크 연결"]
+  CI --> RT["Retrieve<br/>희소+밀집 → 노브① 임계값<br/>상위 30 → Rerank"]
+  RT --> RG{"근거 충분?"}
+  RG -->|"아니오"| B2["REQUEST_MORE<br/>추가 자료 요청<br/>생성 호출 0회"]
+  RG -->|"예"| EF["Edge_Filter<br/>엣지 점수 × 노브②<br/>보호 항목 표시"]
+  EF --> TC{"Token_Check<br/>토큰 ≤ 백본 예산?"}
+  TC -->|"이내"| FS["Final_Synthesize<br/>골든 프레이즈 → 논리 뼈대<br/>→ 원문 인용(출처 ID)"]
+  TC -->|"초과"| TD["Token_Diet<br/>낮은 우선순위 온톨로지부터<br/>보호되지 않은 항목 제외"]
+  TD --> DC{"더 줄일 항목 있음?<br/>반복 상한 이내?"}
+  DC -->|"예 · 다시 검사"| TC
+  DC -->|"아니오"| B3["BUDGET_PROTECTED_OVERFLOW<br/>보호 항목만 남음<br/>자르지 않고 보고 · 사람 판단"]
+  FS --> OC["Output_Check<br/>새 숫자·ID 없음<br/>출처 부분집합 · 최종 마스킹"]
+  OC --> F(["final_prompt_input<br/>→ Llama 백본 에이전트"])
+  F -.->|"선택"| GEN["Generate<br/>로컬 Llama · 결과 재검사"]
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef java fill:#1f3320,stroke:#8fcf86,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class S,F result;
+  class GI,OC,LS guard;
+  class CI architecture;
+  class RT,EF engineering;
+  class TD,FS,GEN worker;
+  class GB,RG,TC,DC control;
+  class B1,B2,B3 stop;
