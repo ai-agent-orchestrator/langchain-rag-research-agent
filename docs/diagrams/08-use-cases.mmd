@@ -1,0 +1,29 @@
+flowchart TB
+  ENG["EDGE EQUALIZER 엔진 · 재사용 라이브러리<br/>build_brief · search · build_graph"]
+  subgraph UC["활용 방향"]
+    direction LR
+    D1["리서치 툴<br/>Draft to Done · 피드 필터<br/>spear Low · shield High<br/>보호: 가설 · 제약 · 수치"] ~~~ D2["판례·법령 검색<br/>Legal Intake 후속<br/>spear High · shield Mid<br/>보호: 사건번호 · 조문 · 주문"] ~~~ D3["상담 기록 검색<br/>임상가 보조 · 로컬 전용<br/>spear Mid · shield High<br/>보호: 위험 신호 · 환자 표현"] ~~~ D4["기타 재사용<br/>논문 · 내부 명세<br/>FAQ · 결정 기록"]
+  end
+  subgraph PRE["시작 전 조건"]
+    direction LR
+    C1["합성 자료로 검증<br/>골든 엣지 목록"] ~~~ C2["공개 출처 · 라이선스<br/>인용 ID 검사<br/>판례 변경 표시"] ~~~ C3["민감정보 · 법무·의료 검토<br/>진단 생성 금지<br/>외부 전송 금지"] ~~~ C4["도메인별 골든셋<br/>보호 규칙 작성"]
+  end
+  ENG --> UC --> PRE
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class ENG worker;
+  class D1 result;
+  class D2 engineering;
+  class D3 guard;
+  class D4 python;
+  class C1,C2,C4 control;
+  class C3 stop;
+  style UC fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style PRE fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb

@@ -1,0 +1,27 @@
+flowchart TB
+  START(["이전 장 · Edge_Filter 결과<br/>filtered_context + 보호 항목"]) --> TC{"Token_Check<br/>토큰 ≤ 백본 예산?"}
+  TC -->|"이내"| FS["Final_Synthesize<br/>골든 프레이즈 → 논리 뼈대<br/>→ 원문 인용 (출처 ID)"]
+  TC -->|"초과"| TD["Token_Diet<br/>낮은 우선순위 온톨로지부터<br/>보호되지 않은 청크 1개 제외"]
+  TD --> DC{"더 줄일 항목 있음?<br/>반복 상한 이내?"}
+  DC -->|"예 · 다시 검사"| TC
+  DC -->|"아니오"| B3["BUDGET_PROTECTED_OVERFLOW<br/>보호 항목만 남음<br/>자르지 않고 보고 · 사람 판단"]
+  FS --> OC["Output_Check<br/>새 숫자·ID 없음 · 출처 부분집합<br/>최종 마스킹"]
+  OC --> F(["final_prompt_input<br/>→ 로컬 모델 (Llama · Qwen 등)"])
+  F -.->|"선택"| GEN["Generate<br/>요약 · 결과 재검사"]
+  LS["LangSmith Tracing<br/>모든 노드 · 허용 목록 필드만"]
+  TD -.-> LS
+  FS -.-> LS
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class START,F result;
+  class OC,LS guard;
+  class TD,FS,GEN worker;
+  class TC,DC control;
+  class B3 stop;

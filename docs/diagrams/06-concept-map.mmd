@@ -1,0 +1,32 @@
+flowchart TB
+  SRC["입력 · 40쪽 드래프트와 질문"]
+  subgraph SA["STEP A · 찾을 준비와 검색"]
+    direction LR
+    P1["① 온톨로지 분류<br/>서류 분류함 5칸<br/>[LangChain 파서]"] --> P2["② 임베딩 + 벡터DB<br/>문장을 좌표로, 좌표 서랍장<br/>[E5 · memvid]"] --> P3["③ 검색 · 유사도<br/>키워드 + 의미, 가까운 것 꺼내기<br/>[BM25 · 코사인 · 리랭커]"]
+  end
+  subgraph SB["STEP B · 고르고 줄이고 요약"]
+    direction LR
+    P4["④ 골든룰 점수<br/>형광펜: 엣지 vs 클리셰<br/>[노브 ②]"] --> P5["⑤ Token Diet<br/>책상 크기에 맞춰 줄이기<br/>[LangGraph 반복]"] --> P6["⑥ 로컬 모델 요약<br/>Llama · Qwen 등<br/>[LangChain 체인]"]
+  end
+  LS["LangSmith · 모든 단계를 녹화하고 채점<br/>어디서 엣지가 탈락했나 · 서빙 중 업로드 0"]
+  SRC --> SA --> SB
+  SA -.-> LS
+  SB -.-> LS
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class SRC python;
+  class P1 architecture;
+  class P2 python;
+  class P3 engineering;
+  class P4 control;
+  class P5,P6 worker;
+  class LS guard;
+  style SA fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style SB fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
