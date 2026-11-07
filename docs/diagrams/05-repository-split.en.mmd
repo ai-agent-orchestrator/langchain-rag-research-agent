@@ -1,0 +1,43 @@
+flowchart TB
+  subgraph A["① LEGAL-INTAKE-FASTAPI-LAB"]
+    direction LR
+    A1["intake / guidance Python actions"]
+    A2["9 security actions<br/>canonical masking · input policy"]
+    A3["marketing hardening M01 · M02"]
+  end
+  subgraph B["③ LANGCHAIN-RAG-RESEARCH-AGENT (formerly python-memvid-guardrail)"]
+    direction LR
+    B1["from ① app/rag · rag-runtime<br/>scripts · fixtures · evidence"]
+    B2["existing search design v0.2<br/>src · golden set · brief"]
+    B3["edge-preserving input architecture<br/>two knobs<br/>LangGraph · LangSmith"]
+  end
+  subgraph C["② SPRING-FASTAPI-ASYNC-REFACTOR"]
+    direction LR
+    C1["virtual threads · asyncio refactor<br/>A0–A5"]
+    C2["docs/hybrid/<br/>Spring control<br/>FastAPI + memvid"]
+  end
+  A2 -->|"shared masking · input policy<br/>no copying"| B3
+  A -.->|"move RAG code · docs"| B1
+  B -.->|"move hybrid docs<br/>PDFs · diagrams"| C2
+  B -->|"reusable library"| R1["research multi-agent · Llama"]
+  B -->|"connect after completion · no new API"| A1
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef java fill:#1f3320,stroke:#8fcf86,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class A1,A3 engineering;
+  class A2 guard;
+  class B1,B2 python;
+  class B3 worker;
+  class C1 engineering;
+  class C2 java;
+  class R1 result;
+  style A fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style B fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style C fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb

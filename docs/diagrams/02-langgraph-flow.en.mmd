@@ -1,0 +1,39 @@
+flowchart TB
+  S(["START<br/>raw_draft · task · knobs"]) --> GI["Guard_Input<br/>shared masking · input policy<br/>injected segments excluded + reported"]
+  S -.->|"logs every node"| LS["LangSmith Tracing<br/>ontology split<br/>surviving edge sentences<br/>allow-listed fields only"]
+  GI --> GB{"policy blocked?"}
+  GB -->|"yes"| B1["BLOCKED<br/>record_risk_event<br/>zero generation calls"]
+  GB -->|"no"| CI["Chunk_Ingest<br/>structure split · 5-class ontology<br/>causal links"]
+  CI --> PP["Protected_Pick<br/>golden keywords · Constraint segments<br/>bypass threshold · knob 2 ≥ 0.5"]
+  PP --> EF
+  CI --> RT["Retrieve<br/>sparse + dense → knob 1 threshold<br/>top 30 → rerank<br/>no query: class-wise comparison"]
+  RT --> RG{"enough evidence?"}
+  RG -->|"no"| B2["REQUEST_MORE<br/>ask for more material<br/>zero generation calls"]
+  RG -->|"yes"| EF["Edge_Filter<br/>edge score × knob 2<br/>mark protected items"]
+  EF --> TC{"Token_Check<br/>tokens ≤ model budget?"}
+  TC -->|"fits"| FS["Final_Synthesize<br/>golden phrases → logic skeleton<br/>→ source quotes (source IDs)"]
+  TC -->|"over"| TD["Token_Diet<br/>drop unprotected items,<br/>lowest-priority ontology first"]
+  TD --> DC{"more to drop?<br/>within loop cap?"}
+  DC -->|"yes · re-check"| TC
+  DC -->|"no"| B3["BUDGET_PROTECTED_OVERFLOW<br/>only protected items left<br/>report, do not cut · human decides"]
+  FS --> OC["Output_Check<br/>no new numbers/IDs<br/>sources ⊆ input · final masking"]
+  OC --> F(["final_prompt_input<br/>→ Llama backbone agent"])
+  F -.->|"optional"| GEN["Generate<br/>local Llama · re-check output"]
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef java fill:#1f3320,stroke:#8fcf86,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class S,F result;
+  class GI,OC,LS guard;
+  class CI architecture;
+  class RT,EF engineering;
+  class TD,FS,GEN worker;
+  class GB,RG,TC,DC control;
+  class PP guard;
+  class B1,B2,B3 stop;

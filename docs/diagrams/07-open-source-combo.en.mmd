@@ -1,0 +1,40 @@
+flowchart TB
+  SRC["original draft · 30–40 pages"]
+  subgraph A["A · FEED IT WHOLE (BASELINE)"]
+    direction LR
+    A1["whole draft into a small model<br/>over the window: front part only<br/>the middle is easy to miss"] --> A2["flat summary<br/>clichés stay<br/>original edges drop out"]
+  end
+  subgraph B1["B-1 · BUILD A BRIEF WITH THE EQUALIZER"]
+    direction LR
+    B11["ontology · retrieval · knobs<br/>mark protected items"] --> B12["Token Diet<br/>fit the budget"] --> B13["edge brief<br/>instruction block + data block"]
+  end
+  subgraph B2["B-2 · SUMMARIZE WITH A LOCAL MODEL AND CHECK"]
+    direction LR
+    B21["local model<br/>Llama etc.<br/>swappable behind Generator"] --> B22["output check<br/>reject new numbers / IDs<br/>source IDs ⊆ input"] --> B23["summary + source IDs"]
+  end
+  EV["EVALUATION · same golden-edge list<br/>compare edge recall of A and B"]
+  SRC --> A
+  SRC --> B1 --> B2
+  A2 -.-> EV
+  B23 -.-> EV
+  classDef strategy fill:#173b3e,stroke:#66cfc8,color:#e6edf6;
+  classDef architecture fill:#342a4c,stroke:#b39ae5,color:#e6edf6;
+  classDef engineering fill:#18344b,stroke:#5ba7db,color:#e6edf6;
+  classDef python fill:#26313d,stroke:#a1afbf,color:#e6edf6;
+  classDef guard fill:#263c17,stroke:#91cc45,stroke-width:3px,color:#e6edf6;
+  classDef worker fill:#4b2b22,stroke:#d39a6a,stroke-width:3px,color:#e6edf6;
+  classDef control fill:#42351e,stroke:#ddb965,color:#e6edf6;
+  classDef result fill:#1a2837,stroke:#78d5ef,color:#e6edf6;
+  classDef stop fill:#40282d,stroke:#c58b92,color:#e6edf6;
+  class SRC python;
+  class A1 worker;
+  class A2 stop;
+  class B11,B13 architecture;
+  class B12 worker;
+  class B21 worker;
+  class B22 guard;
+  class B23 result;
+  class EV control;
+  style A fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style B1 fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
+  style B2 fill:#141f2c,stroke:#455f79,stroke-width:1.5px,color:#c9d8eb
