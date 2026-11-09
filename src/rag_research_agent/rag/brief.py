@@ -85,7 +85,8 @@ def build_brief(draft: str, task: str | None = None, knobs: Knobs | None = None,
         b = Brief("", Status.BLOCKED, versions=versions)
         return b, BriefTrace(settings, [], [f"blocked: {decision.reason}"], Status.BLOCKED)
 
-    segs: list[Segment] = p.labeler.label(p.chunker.split(draft, "draft"))
+    labeler = p.labeler.with_text(draft) if hasattr(p.labeler, "with_text") else p.labeler
+    segs: list[Segment] = labeler.label(p.chunker.split(draft, "draft"))
     links = p.link_builder.build(segs)
     rel_of = p.relevance(task)
     scorer = p.scorer_factory(p.rules, draft, packs, focus=focus)
@@ -98,13 +99,13 @@ def build_brief(draft: str, task: str | None = None, knobs: Knobs | None = None,
     protected_ids: set[str] = set()
     if st.protected_path:
         protected_ids = {c.segment_id for c in RuleProtectedPicker(scorer).pick(segs, list(edge.values()))}
-        protected_ids |= {s.segment_id for s in segs if s.ontology_label.value in cfg.never_remove}
+        protected_ids |= {s.segment_id for s in segs if getattr(s.ontology_label, 'value', s.ontology_label) in cfg.never_remove}
     chosen_ids = {s.segment_id for s in ordinary} | protected_ids
     chosen = [s for s in segs if s.segment_id in chosen_ids]
     excluded = [(s.segment_id, "below_threshold" if rel[s.segment_id] < st.threshold else "outside_top_k")
                 for s in segs if s.segment_id not in chosen_ids]
 
-    rows = [{"id": s.segment_id, "relevance": rel[s.segment_id], "edge": edge[s.segment_id].total,
+    rows = [{"id": s.segment_id, "label": getattr(s.ontology_label, "value", s.ontology_label), "relevance": rel[s.segment_id], "edge": edge[s.segment_id].total,
              "final": final[s.segment_id], "protected": s.segment_id in protected_ids,
              "chosen": s.segment_id in chosen_ids, "text": draft[s.start:s.end]} for s in segs]
     if not chosen:                                             # no evidence: zero generation calls

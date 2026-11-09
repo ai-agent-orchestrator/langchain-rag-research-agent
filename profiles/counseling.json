@@ -1,0 +1,68 @@
+{
+  "name": "counseling",
+  "profile_version": 1,
+  "label": "상담 지원",
+  "description": "위험 신호는 항상 보호(DESIGN 8). 외부 공급자 거부",
+  "packs": [],
+  "knobs": {
+    "similarity": "Mid",
+    "edge_weight": "High"
+  },
+  "external_allowed": false,
+  "ontology": {
+    "classes": [
+      {
+        "name": "위험신호",
+        "description": "자해·자살 등 위험 신호. 절대 빼지 않음",
+        "cues": [
+          "자해",
+          "죽고 싶",
+          "극단적",
+          "자살",
+          "해치고"
+        ]
+      },
+      {
+        "name": "Constraint_Guardrail",
+        "description": "한계·조건·위험. 절대 빼지 않음",
+        "cues": [
+          "확인되지 않았다",
+          "에서만",
+          "경우에만",
+          "단정할 수 없",
+          "제외",
+          "한계",
+          "위험",
+          "하지 않는다"
+        ]
+      },
+      {
+        "name": "호소",
+        "cues": [
+          "힘들",
+          "불안",
+          "잠을 못",
+          "우울"
+        ]
+      },
+      {
+        "name": "상황",
+        "cues": [
+          "회사",
+          "가족",
+          "학교",
+          "관계"
+        ]
+      }
+    ],
+    "diet_order": [
+      "Unclassified",
+      "상황",
+      "호소"
+    ],
+    "never_remove": [
+      "위험신호",
+      "Constraint_Guardrail"
+    ]
+  }
+}

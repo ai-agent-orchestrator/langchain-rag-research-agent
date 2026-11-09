@@ -21,6 +21,10 @@
 | 9 | 조립 | `compose.ExtractiveComposer` (원문 순서, DATA 블록) | 분류 순서 조립 |
 | 10 | 출력 검사 | `compose.NumberIdOutputChecker` (새 숫자·없는 구간 번호 거절) | 날짜·고유명사 검사 추가 |
 
+## 필터 프로필 (재사용의 단위)
+
+`profiles/*.json` 하나 = 분야 필터 하나: 온톨로지 분류(그 분야의 문장 종류와 판별 표현), 감량 순서, 절대 빼지 않는 분류, 노브, 분야 묶음, 집중 키워드, 외부 허용. 누구든 `profiles/_template.json`을 복사해 고치면 된다. 다른 프로젝트에서는 `Equalizer.from_profile("litigation").brief(text)`로 붙인다. 사용법: [profiles/README.md](../profiles/README.md).
+
 ## 필터 (= 프리셋), 데이터로 교체
 
 `data/equalizer/presets_v0.json`. 필터 하나 = 노브 수준(Low/Mid/High) + 분야 묶음 + 기본 집중 키워드 + 외부 공급자 허용 여부. 감량 순서는 공통(`diet`).

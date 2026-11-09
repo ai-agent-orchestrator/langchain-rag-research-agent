@@ -1,0 +1,79 @@
+{
+  "name": "research",
+  "profile_version": 1,
+  "label": "일반 리서치",
+  "description": "DESIGN D4 리서치 기본 순서",
+  "packs": [],
+  "knobs": {
+    "similarity": "Low",
+    "edge_weight": "High"
+  },
+  "ontology": {
+    "classes": [
+      {
+        "name": "Constraint_Guardrail",
+        "description": "한계·조건·위험. 절대 빼지 않음",
+        "cues": [
+          "확인되지 않았다",
+          "에서만",
+          "경우에만",
+          "단정할 수 없",
+          "제외",
+          "한계",
+          "위험",
+          "하지 않는다"
+        ]
+      },
+      {
+        "name": "Core",
+        "description": "핵심 가설·결론",
+        "cues": [
+          "핵심",
+          "결론",
+          "가설",
+          "요컨대"
+        ]
+      },
+      {
+        "name": "Action",
+        "description": "해야 할 일·계획",
+        "cues": [
+          "해야",
+          "조치",
+          "계획",
+          "실행"
+        ]
+      },
+      {
+        "name": "Tech",
+        "description": "기술·구조",
+        "cues": [
+          "기술",
+          "구조",
+          "방식",
+          "모델"
+        ]
+      },
+      {
+        "name": "Market",
+        "description": "시장·포지셔닝",
+        "cues": [
+          "시장",
+          "점유율",
+          "경쟁",
+          "고객"
+        ]
+      }
+    ],
+    "diet_order": [
+      "Unclassified",
+      "Market",
+      "Tech",
+      "Action",
+      "Core"
+    ],
+    "never_remove": [
+      "Constraint_Guardrail"
+    ]
+  }
+}

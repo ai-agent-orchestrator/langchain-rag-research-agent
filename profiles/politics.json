@@ -1,0 +1,93 @@
+{
+  "name": "politics",
+  "profile_version": 1,
+  "label": "정치·지정학",
+  "description": "key player 근거 기록 보존 → 예측의 재료",
+  "packs": [
+    "geopolitics"
+  ],
+  "knobs": {
+    "similarity": "Low",
+    "edge_weight": "High"
+  },
+  "ontology": {
+    "classes": [
+      {
+        "name": "Constraint_Guardrail",
+        "description": "한계·조건·위험. 절대 빼지 않음",
+        "cues": [
+          "확인되지 않았다",
+          "에서만",
+          "경우에만",
+          "단정할 수 없",
+          "제외",
+          "한계",
+          "위험",
+          "하지 않는다"
+        ]
+      },
+      {
+        "name": "레드라인",
+        "description": "넘지 말 선·경고",
+        "cues": [
+          "레드라인",
+          "용납할 수 없",
+          "경고"
+        ]
+      },
+      {
+        "name": "행위자_의도",
+        "description": "밝힌 목표·의도",
+        "cues": [
+          "목표",
+          "의도",
+          "천명",
+          "공언"
+        ]
+      },
+      {
+        "name": "행동",
+        "description": "실제 행동·결정",
+        "cues": [
+          "결정",
+          "배치",
+          "서명",
+          "발표",
+          "제재"
+        ]
+      },
+      {
+        "name": "반응",
+        "description": "상대의 반응·맞대응",
+        "cues": [
+          "반발",
+          "맞대응",
+          "보복",
+          "대응해"
+        ]
+      },
+      {
+        "name": "제약",
+        "description": "국내 정치·경제 제약",
+        "cues": [
+          "선거",
+          "지지율",
+          "여론",
+          "의회",
+          "예산"
+        ]
+      }
+    ],
+    "diet_order": [
+      "Unclassified",
+      "제약",
+      "반응",
+      "행동",
+      "행위자_의도"
+    ],
+    "never_remove": [
+      "Constraint_Guardrail",
+      "레드라인"
+    ]
+  }
+}

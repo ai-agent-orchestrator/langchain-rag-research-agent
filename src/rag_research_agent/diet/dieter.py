@@ -11,6 +11,10 @@ from typing import Callable, Sequence
 from rag_research_agent.core.types import CausalLink, Segment, Status
 
 
+def label_of(seg: Segment) -> str:
+    return getattr(seg.ontology_label, "value", seg.ontology_label)
+
+
 def char_units(text: str) -> int:
     """v0 budget unit: characters. Swap for a real tokenizer count later."""
     return len(text)
@@ -56,7 +60,7 @@ class ClassOrderDieter:
                     todo.extend(partners.get(x, ()))
             return out
 
-        order = list(self.class_order) + sorted({s.ontology_label.value for s in kept} - set(self.class_order))
+        order = list(self.class_order) + sorted({label_of(s) for s in kept} - set(self.class_order))
         max_rounds = len(order) + 1
         for label in order:
             if res.used <= self.budget or res.rounds >= max_rounds:
@@ -64,12 +68,12 @@ class ClassOrderDieter:
             if label in self.never_remove:
                 continue
             res.rounds += 1
-            pool = sorted((s for s in res.kept if s.ontology_label.value == label), key=lambda s: (scores.get(s.segment_id, 0.0), -s.start))
+            pool = sorted((s for s in res.kept if label_of(s) == label), key=lambda s: (scores.get(s.segment_id, 0.0), -s.start))
             for s in pool:
                 if res.used <= self.budget:
                     break
                 ids = {x for x in group(s.segment_id) if any(k.segment_id == x for k in res.kept)}
-                if ids & protected or any(k.ontology_label.value in self.never_remove for k in res.kept if k.segment_id in ids):
+                if ids & protected or any(label_of(k) in self.never_remove for k in res.kept if k.segment_id in ids):
                     continue
                 res.kept = [k for k in res.kept if k.segment_id not in ids]
                 for x in sorted(ids):
