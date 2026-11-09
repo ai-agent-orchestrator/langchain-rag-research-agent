@@ -4,7 +4,7 @@
 
 [English README](README.md) · [설계 정본](docs/DESIGN.ko.md) · [설계 검수 보고서](docs/DESIGN_REVIEW.ko.md) · [공부 가이드 (다크 PDF)](docs/EQUALIZER_STUDY_DARK.pdf)
 
-> **상태: 설계 v1.0 확정(결정 D1~D7 확정, 2026-11-09), 구현 전.** 정본은 [docs/DESIGN.ko.md](docs/DESIGN.ko.md)입니다. 최상위 원칙 P0: 모든 기능은 분리 가능한 모듈로 만듭니다. 저장소 이름은 `python-memvid-guardrail`에서 `langchain-rag-research-agent`로 변경했고(옛 주소는 자동 연결), 이전의 하이브리드(Spring Boot + FastAPI + memvid) 내용은 [`docs/legacy/`](docs/legacy)에 보존돼 있고 [spring-fastapi-async-refactor](https://github.com/ai-agent-orchestrator/spring-fastapi-async-refactor)로 옮길 예정입니다.
+> **상태: 설계 v1.0 확정(결정 D1~D7 확정, 2026-11-09), 구현 전.** 정본은 [docs/DESIGN.ko.md](docs/DESIGN.ko.md)입니다. 최상위 원칙 P0: 모든 기능은 분리 가능한 모듈로 만듭니다. 저장소 이름은 `python-memvid-guardrail`에서 `langchain-rag-research-agent`로 변경했고(옛 주소는 자동 연결), 이전의 하이브리드(Spring Boot + FastAPI + memvid) 내용은 [spring-fastapi-async-refactor/docs/hybrid](https://github.com/ai-agent-orchestrator/spring-fastapi-async-refactor/tree/main/docs/hybrid)로 옮겼습니다.
 > 현재 있는 것: E5 + memvid 검색 평가(합성 자료로 **실측**), 패키지 뼈대, 긴 프롬프트 브리프 시제품(가짜 임베더). **Edge Equalizer 자체는 설계 단계이며 구현 전이고, 실제 Llama·Qwen으로 요약 품질을 잰 결과는 아직 없습니다.** 아래 모든 숫자에 *실측*, *시제품*, *예시* 중 하나를 표시했습니다.
 
 ![전체 구조](docs/diagrams/01-architecture-overview.png)
