@@ -12,11 +12,12 @@ dependencies = ["pydantic>=2"]
 
 [project.optional-dependencies]
 memvid = ["memvid-sdk==2.0.160"]
+chroma = ["chromadb>=1.0"]
 e5 = ["sentence-transformers"]
 langchain = ["langchain-core", "langgraph"]
 langsmith = ["langsmith"]
 test = ["pytest"]
-all = ["langchain-rag-research-agent[memvid,langchain,langsmith,test]"]
+all = ["langchain-rag-research-agent[memvid,chroma,langchain,langsmith,test]"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
