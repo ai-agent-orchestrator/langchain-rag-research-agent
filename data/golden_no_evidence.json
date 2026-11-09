@@ -1,0 +1,11 @@
+[
+ {"question": "사무소 건물에 주차할 수 있나요?", "source": null, "type": "off_topic", "notes": "어느 조문에도 주차 안내 없음"},
+ {"question": "변호사님 경력이 몇 년이에요?", "source": null, "type": "off_topic"},
+ {"question": "형사 고소장은 어떻게 쓰나요?", "source": null, "type": "off_topic"},
+ {"question": "상담을 영어로 받을 수 있나요?", "source": null, "type": "off_topic"},
+ {"question": "상담 비용을 카드 할부로 낼 수 있나요?", "source": null, "type": "hard_negative", "notes": "제4조는 결제 시점만 정하고 할부는 다루지 않음"},
+ {"question": "예약 확정 문자를 카톡으로 받을 수 있나요?", "source": null, "type": "hard_negative", "notes": "제2조는 문자 발송만 정함"},
+ {"question": "개인정보를 해외 서버에 보관하나요?", "source": null, "type": "hard_negative", "notes": "제6·7조는 수집·보관 기간만 정하고 보관 위치는 다루지 않음"},
+ {"question": "AI 안내 결과를 법원에 증거로 낼 수 있나요?", "source": null, "type": "hard_negative", "notes": "제9조는 AI 안내의 한계만 정함"},
+ {"question": "조정이 안 되면 소송 비용은 누가 내나요?", "source": null, "type": "hard_negative", "notes": "제10조는 조정 신청까지만 정함"}
+]

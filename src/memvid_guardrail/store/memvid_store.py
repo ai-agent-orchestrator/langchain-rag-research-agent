@@ -110,12 +110,90 @@ def publish_index(chunks: Sequence[Chunk], vectors: Sequence[Sequence[float]], *
                 raise RetrievalUnavailable(f"self-retrieval check failed for {chunk.chunk_id}")
     finally:
         index.close()
-    pointer = {"indexVersion": index_version, "file": mv2.name, "manifest": meta.name,
-               "sha256": manifest.sha256}
+    _write_pointer(index_dir, manifest, meta.name)
+    return manifest
+
+
+def _read_pointer(index_dir: Path) -> dict | None:
+    try:
+        return json.loads((index_dir / POINTER).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as exc:
+        raise RetrievalUnavailable("active index pointer unreadable") from exc
+
+
+def _write_pointer(index_dir: Path, manifest: IndexManifest, manifest_name: str) -> None:
+    current = _read_pointer(index_dir)
+    previous = current.get("indexVersion") if current else None
+    pointer = {"indexVersion": manifest.index_version, "file": manifest.file, "manifest": manifest_name,
+               "sha256": manifest.sha256,
+               "previous": previous if previous != manifest.index_version else current.get("previous")}
     tmp = index_dir / (POINTER + ".tmp")
     tmp.write_text(json.dumps(pointer, indent=1), encoding="utf-8")
     os.replace(tmp, index_dir / POINTER)  # only the pointer is swapped; open .mv2 files are untouched
+
+
+def list_versions(index_dir: Path) -> list[dict]:
+    """Every published version with its state: active, previous, or retired (oldest first)."""
+    pointer = _read_pointer(index_dir) or {}
+    out = []
+    for meta in sorted(index_dir.glob("*.manifest.json")):
+        try:
+            data = json.loads(meta.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            out.append({"indexVersion": meta.name.removesuffix(".manifest.json"), "state": "unreadable"})
+            continue
+        version = data["index_version"]
+        state = ("active" if version == pointer.get("indexVersion") else
+                 "previous" if version == pointer.get("previous") else "retired")
+        out.append({"indexVersion": version, "state": state, "createdAt": data["created_at"],
+                    "embeddingModel": data["embedding_model"], "chunks": len(data["chunks"])})
+    return sorted(out, key=lambda v: v.get("createdAt", ""))
+
+
+def activate(index_dir: Path, index_version: str, *, embedding_model: str, pinned_revision: str,
+             dimension: int, normalization: str = "l2") -> IndexManifest:
+    """Point active.json at an existing version (rollback or roll forward) after re-checking it.
+
+    The version must still match its manifest hash and the caller's embedder identity, and must
+    reopen read-only. Nothing is rewritten; a failed check leaves the current pointer alone.
+    """
+    meta = index_dir / f"{index_version}.manifest.json"
+    try:
+        manifest = _manifest_from_json(json.loads(meta.read_text(encoding="utf-8")))
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise RetrievalUnavailable(f"manifest unreadable for {index_version}") from exc
+    mv2 = index_dir / manifest.file
+    if not mv2.exists() or _sha256(mv2) != manifest.sha256:
+        raise RetrievalUnavailable("index file does not match its manifest")
+    if not manifest.accepts(embedding_model, pinned_revision, dimension, normalization):
+        raise RetrievalUnavailable("query embedder does not match the index")
+    MemvidIndex(index_dir, manifest).close()
+    _write_pointer(index_dir, manifest, meta.name)
     return manifest
+
+
+def prune(index_dir: Path) -> dict:
+    """Delete retired versions; keep the active one and the previous one for rollback.
+
+    Windows refuses to delete a file another process still has open. Such files are reported in
+    `kept_locked` and left in place, never forced, so a later prune can finish the job.
+    """
+    removed, locked = [], []
+    for item in list_versions(index_dir):
+        if item["state"] != "retired":
+            continue
+        version = item["indexVersion"]
+        paths = [index_dir / f"{version}.mv2", *index_dir.glob(f"{version}.mv2.*"),
+                 index_dir / f"{version}.manifest.json"]
+        for path in paths:
+            try:
+                path.unlink(missing_ok=True)
+            except PermissionError:
+                locked.append(path.name)
+        removed.append(version)
+    return {"removed": removed, "kept_locked": locked}
 
 
 def open_active(index_dir: Path, *, embedding_model: str, pinned_revision: str, dimension: int,

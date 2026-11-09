@@ -8,6 +8,7 @@ dist/
 data/*
 !data/golden_set.json
 !data/articles.json
+!data/golden_no_evidence.json
 !data/README.md
 *.mv2
 *.mv2.*
