@@ -1,0 +1,23 @@
+{
+  "_note": "Lane RRA - langchain-rag-research-agent (Claude Code CLI). start_night.ps1 fills the paths; keep the lock/cap settings as they are.",
+  "workdir": "__REPO__",
+  "branch": "nc/rra-night",
+  "base": "main",
+  "inbox": "__WORK__/inbox",
+  "outbox": "__WORK__/outbox",
+  "state_dir": "__WORK__/state",
+  "test_cmd": ["__REPO__/.venv/Scripts/python.exe", "-m", "pytest", "-q", "-p", "no:cacheprovider"],
+  "codex_cmd": [
+    "claude", "-p", "--permission-mode", "acceptEdits", "--allowedTools",
+    "Read,Edit,Write,Glob,Grep,Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(python:*)"
+  ],
+  "codex_timeout_min": 90,
+  "forbid": [".github", "data/golden_rules", "data/equalizer", "data/golden_sets", "profiles"],
+  "stop_at": null,
+  "cooldown": {"wait": true, "max_wait_min": 300, "default_wait_min": 60, "max_cooldowns": 8},
+  "keep_awake": true,
+  "fix_rounds": 1,
+  "max_tasks": 10,
+  "test_timeout_min": 20,
+  "reviewer": {"enabled": false}
+}

@@ -8,7 +8,19 @@
 | `rra-p3-lint.md` | 프로필·골든룰 검사기 `rra check` | 2 |
 | `rra-p2-graph.md` | LangGraph 어댑터 + 로컬 기록 | 3 |
 
-## 출발 전 점검 (Windows PC, 10분)
+## 시작: 명령 한 줄 (다음부터)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\myLectureWs\python-memvid-guardrail\nightcoder_specs\start_night.ps1 -ScreenOff
+```
+
+스크립트가 아래 점검을 순서대로 하고, 문제가 있으면 이유를 말하고 멈춘다: main 최신·깨끗함 → 시험 실패 0 → 명세를 `001-`, `002-` 이름으로 inbox에 복사(`after:` 줄 제거, 순서 = 번호) → 설정 파일 작성(`nc2.rra.template.json` → `C:\Users\Codelab\nc2-rra\nc2.rra.json`) → NightCoder 시험 운행 → 한 번 확인 후 시작(절전 끄기, 선택 시 20초 뒤 화면 끄기).
+
+옵션: `-DryRun`(점검만), `-Specs "rra-p1-*.md"`(일부만), `-StopAt 07:30`. 코더는 템플릿의 `codex_cmd`(현재 Claude Code CLI)를 쓴다. Codex로 바꾸려면 템플릿의 `codex_cmd`만 고친다.
+
+새 명세를 추가하려면 이 폴더에 `rra-<이름>.md`를 넣는다(헤더: `files:`, `forbid:`, `effort:`). 실행 순서는 파일 이름 알파벳순이다.
+
+## 출발 전 점검 (수동으로 할 때, Windows PC, 10분)
 
 1. **저장소 최신화:** `cd C:\myLectureWs\python-memvid-guardrail` (로컬 폴더 이름은 예전 그대로) → `git checkout main` → `git pull`. 미커밋 변경이 없어야 한다(`git status` 깨끗). 있으면 Codex 작업 브랜치에 커밋하거나 따로 보관.
 2. **시험 기준선:** 그 저장소 `.venv`에서
