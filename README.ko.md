@@ -2,9 +2,9 @@
 
 **재사용 가능한 검색·브리프 모듈: 하이브리드 검색, 엣지 보존 "이퀄라이저", 그리고 긴 드래프트를 작은 로컬 모델용으로 줄일 때 작성자의 독창적 아이디어를 지키는 LangGraph 파이프라인.**
 
-[English README](README.md) · [설계 검수 보고서](docs/DESIGN_REVIEW.ko.md) · [공부 가이드 (다크 PDF)](docs/EQUALIZER_STUDY_DARK.pdf)
+[English README](README.md) · [설계 정본](docs/DESIGN.ko.md) · [설계 검수 보고서](docs/DESIGN_REVIEW.ko.md) · [공부 가이드 (다크 PDF)](docs/EQUALIZER_STUDY_DARK.pdf)
 
-> **상태: 설계 v1.0 검토 중.** 저장소 이름은 `python-memvid-guardrail`에서 변경하는 중이며, 이전의 하이브리드(Spring Boot + FastAPI + memvid) 내용은 [`docs/legacy/`](docs/legacy)에 보존돼 있고 [spring-fastapi-async-refactor](https://github.com/ai-agent-orchestrator/spring-fastapi-async-refactor)로 옮길 예정입니다.
+> **상태: 설계 v1.0 확정(결정 D1~D7 확정, 2026-11-09), 구현 전.** 정본은 [docs/DESIGN.ko.md](docs/DESIGN.ko.md)입니다. 최상위 원칙 P0: 모든 기능은 분리 가능한 모듈로 만듭니다. 저장소 이름은 `python-memvid-guardrail`에서 변경하는 중이며, 이전의 하이브리드(Spring Boot + FastAPI + memvid) 내용은 [`docs/legacy/`](docs/legacy)에 보존돼 있고 [spring-fastapi-async-refactor](https://github.com/ai-agent-orchestrator/spring-fastapi-async-refactor)로 옮길 예정입니다.
 > 현재 있는 것: E5 + memvid 검색 평가(합성 자료로 **실측**), 패키지 뼈대, 긴 프롬프트 브리프 시제품(가짜 임베더). **Edge Equalizer 자체는 설계 단계이며 구현 전이고, 실제 Llama·Qwen으로 요약 품질을 잰 결과는 아직 없습니다.** 아래 모든 숫자에 *실측*, *시제품*, *예시* 중 하나를 표시했습니다.
 
 ![전체 구조](docs/diagrams/01-architecture-overview.png)
