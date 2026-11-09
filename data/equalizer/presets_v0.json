@@ -1,0 +1,108 @@
+{
+  "note": "v0 filters (= presets). A filter bundles knob levels, domain packs, default focus keywords, diet order and the external-provider switch. Swap or edit freely; tau values are UNCALIBRATED.",
+  "mapper": {
+    "tau_low": 0.0,
+    "tau_high": 0.6,
+    "k_low": 30,
+    "k_high": 8,
+    "extract_only_from": 0.5
+  },
+  "levels": {
+    "Low": 0.2,
+    "Mid": 0.5,
+    "High": 0.8
+  },
+  "presets": {
+    "research": {
+      "label": "일반 리서치",
+      "similarity": "Low",
+      "edge_weight": "High",
+      "external_allowed": true
+    },
+    "litigation": {
+      "label": "소송",
+      "similarity": "High",
+      "edge_weight": "High",
+      "external_allowed": false,
+      "packs": [
+        "legal"
+      ],
+      "aliases": [
+        "litigation_evidence"
+      ]
+    },
+    "politics": {
+      "label": "정치·지정학",
+      "similarity": "Low",
+      "edge_weight": "High",
+      "external_allowed": true,
+      "packs": [
+        "geopolitics"
+      ]
+    },
+    "macro": {
+      "label": "매크로",
+      "similarity": "Mid",
+      "edge_weight": "High",
+      "external_allowed": true,
+      "packs": [
+        "macro"
+      ]
+    },
+    "tech": {
+      "label": "기술·기업",
+      "similarity": "Mid",
+      "edge_weight": "Mid",
+      "external_allowed": true,
+      "packs": [
+        "tech"
+      ]
+    },
+    "defense": {
+      "label": "방위산업(전략·정책)",
+      "similarity": "Mid",
+      "edge_weight": "High",
+      "external_allowed": true,
+      "packs": [
+        "defense",
+        "geopolitics"
+      ]
+    },
+    "counseling": {
+      "label": "상담 지원",
+      "similarity": "Mid",
+      "edge_weight": "High",
+      "external_allowed": false,
+      "aliases": [
+        "counseling_support"
+      ]
+    },
+    "legal_lookup": {
+      "label": "법령·판례 조회",
+      "similarity": "High",
+      "edge_weight": "Mid",
+      "external_allowed": true,
+      "packs": [
+        "legal"
+      ]
+    },
+    "general_summary": {
+      "label": "일반 요약",
+      "similarity": "Low",
+      "edge_weight": "Low",
+      "external_allowed": true
+    }
+  },
+  "diet": {
+    "class_order": [
+      "Unclassified",
+      "Market",
+      "Tech",
+      "Action",
+      "Core"
+    ],
+    "never_remove": [
+      "Constraint_Guardrail"
+    ]
+  }
+}
