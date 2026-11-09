@@ -13,8 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from memvid_guardrail.guard.masking import MASKING_VERSION, mask_pii
-from memvid_guardrail.core.contracts import Chunk
+from rag_research_agent.guard.masking import MASKING_VERSION, mask_pii
+from rag_research_agent.core.contracts import Chunk
 
 TokenCounter = Callable[[str], int]
 

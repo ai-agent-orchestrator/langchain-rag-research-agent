@@ -2,11 +2,11 @@ import math
 
 import pytest
 
-from memvid_guardrail.embed.providers import FakeEmbedder
-from memvid_guardrail.lab.hybrid import rrf
-from memvid_guardrail.lab.semantic_guard import SemanticGuard, sentences
-from memvid_guardrail.observe.evaluate import calibrate, confusion, hit_at_k, random_baseline
-from memvid_guardrail.retrieve.diversity import Item, group_duplicates, is_novel, mmr_select
+from rag_research_agent.embed.providers import FakeEmbedder
+from rag_research_agent.lab.hybrid import rrf
+from rag_research_agent.lab.semantic_guard import SemanticGuard, sentences
+from rag_research_agent.observe.evaluate import calibrate, confusion, hit_at_k, random_baseline
+from rag_research_agent.retrieve.diversity import Item, group_duplicates, is_novel, mmr_select
 
 
 def unit(*xs):

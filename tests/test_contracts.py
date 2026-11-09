@@ -1,6 +1,6 @@
 import pytest
 
-from memvid_guardrail.core.contracts import (Chunk, Evidence, IndexManifest, RetrievalMode, RetrievalResult,
+from rag_research_agent.core.contracts import (Chunk, Evidence, IndexManifest, RetrievalMode, RetrievalResult,
                              RetrievalStatus, RetrievalUnavailable, build_query)
 
 

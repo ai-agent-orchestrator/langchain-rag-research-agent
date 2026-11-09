@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from memvid_guardrail.embed.providers import FakeEmbedder
-from memvid_guardrail.observe import golden
-from memvid_guardrail.observe.evaluate import (FrozenRuleViolation, confirm, freeze_rule, outcome,
+from rag_research_agent.embed.providers import FakeEmbedder
+from rag_research_agent.observe import golden
+from rag_research_agent.observe.evaluate import (FrozenRuleViolation, confirm, freeze_rule, outcome,
                                                two_axis_report)
 
 DATA = Path(__file__).resolve().parents[1] / "data"

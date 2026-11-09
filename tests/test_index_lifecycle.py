@@ -3,10 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from memvid_guardrail.core.contracts import RetrievalUnavailable
-from memvid_guardrail.embed.providers import FakeEmbedder
-from memvid_guardrail.ingest.chunking import build_chunks, load_guides
-from memvid_guardrail.store.memvid_store import (activate, list_versions, open_active, prune,
+from rag_research_agent.core.contracts import RetrievalUnavailable
+from rag_research_agent.embed.providers import FakeEmbedder
+from rag_research_agent.ingest.chunking import build_chunks, load_guides
+from rag_research_agent.store.memvid_store import (activate, list_versions, open_active, prune,
                                                  publish_index)
 
 pytestmark = pytest.mark.memvid

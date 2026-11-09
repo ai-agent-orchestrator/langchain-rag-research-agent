@@ -12,9 +12,9 @@ import argparse
 import json
 from pathlib import Path
 
-from memvid_guardrail.embed.providers import make_embedder
-from memvid_guardrail.observe import golden
-from memvid_guardrail.observe.evaluate import confirm, freeze_rule, two_axis_report
+from rag_research_agent.embed.providers import make_embedder
+from rag_research_agent.observe import golden
+from rag_research_agent.observe.evaluate import confirm, freeze_rule, two_axis_report
 
 DATA = Path(__file__).resolve().parents[1] / "data"
 

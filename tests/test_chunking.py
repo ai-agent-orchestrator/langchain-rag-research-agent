@@ -2,9 +2,9 @@
 from pathlib import Path
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "synthetic_guides"
 
-from memvid_guardrail.ingest.chunking import build_chunks, load_guides, split_document
-from memvid_guardrail.embed.providers import FakeEmbedder
-from memvid_guardrail.guard.masking import contains_pii, mask_pii
+from rag_research_agent.ingest.chunking import build_chunks, load_guides, split_document
+from rag_research_agent.embed.providers import FakeEmbedder
+from rag_research_agent.guard.masking import contains_pii, mask_pii
 
 COUNT = FakeEmbedder().count_tokens
 

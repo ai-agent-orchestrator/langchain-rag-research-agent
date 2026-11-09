@@ -1,0 +1,76 @@
+......................................F.............                     [100%]
+================================== FAILURES ===================================
+_________ test_serving_guard_blocks_tracing_even_when_env_enables_it __________
+
+armed_tracing = ["socket:('127.0.0.1', 53425)"]
+
+    def test_serving_guard_blocks_tracing_even_when_env_enables_it(armed_tracing):
+        with serving_trace_guard():
+            _invoke_chain()
+            graph = make_graph(lambda t: Outcome("OK", EV), [])
+>           asyncio.run(graph.ainvoke({"request_text": "합성 010-1234-5678"}, config=serving_config()))
+
+tests\test_rag.py:200:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:194: in run
+    with Runner(debug=debug, loop_factory=loop_factory) as runner:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:58: in __enter__
+    self._lazy_init()
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:137: in _lazy_init
+    self._loop = events.new_event_loop()
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py:823: in new_event_loop
+    return get_event_loop_policy().new_event_loop()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py:720: in new_event_loop
+    return self._loop_factory()
+           ^^^^^^^^^^^^^^^^^^^^
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\windows_events.py:316: in __init__
+    super().__init__(proactor)
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py:640: in __init__
+    self._make_self_pipe()
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py:787: in _make_self_pipe
+    self._ssock, self._csock = socket.socketpair()
+                               ^^^^^^^^^^^^^^^^^^^
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\socket.py:623: in _fallback_socketpair
+    csock.connect((addr, port))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <socket.socket [closed] fd=-1, family=2, type=1, proto=0>
+address = ('127.0.0.1', 53425), a = (), k = {}
+
+    def refuse(self, address, *a, **k):
+        calls.append(f"socket:{address}")
+>       raise OSError("blocked")
+E       OSError: blocked
+
+tests\test_rag.py:172: OSError
+============================== warnings summary ===============================
+tests/test_structure.py::test_every_module_declares_a_tier
+  C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\ast.py:52: RuntimeWarning: coroutine 'Pregel.ainvoke' was never awaited
+    return compile(source, filename, mode, flags,
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_structure.py::test_every_module_declares_a_tier
+  C:\myLectureWs\python-memvid-guardrail\.venv\Lib\site-packages\_pytest\unraisableexception.py:63: PytestUnraisableExceptionWarning: Exception ignored in: <function BaseEventLoop.__del__ at 0x000001AF1AE72A20>
+
+  Traceback (most recent call last):
+    File "C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 732, in __del__
+      self.close()
+    File "C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 697, in close
+      self._close_self_pipe()
+    File "C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 779, in _close_self_pipe
+      self._ssock.close()
+      ^^^^^^^^^^^
+  AttributeError: 'ProactorEventLoop' object has no attribute '_ssock'
+
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_rag.py::test_serving_guard_blocks_tracing_even_when_env_enables_it
+1 failed, 51 passed, 2 warnings in 22.62s

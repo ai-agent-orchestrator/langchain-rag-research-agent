@@ -3,7 +3,7 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "memvid-guardrail"
+name = "langchain-rag-research-agent"
 version = "0.1.0.dev0"
 description = "Reusable RAG, retrieval and guard components for legal search and research (stable / incubating / lab)"
 readme = "README.md"
@@ -16,7 +16,7 @@ e5 = ["sentence-transformers"]
 langchain = ["langchain-core", "langgraph"]
 langsmith = ["langsmith"]
 test = ["pytest"]
-all = ["memvid-guardrail[memvid,langchain,langsmith,test]"]
+all = ["langchain-rag-research-agent[memvid,langchain,langsmith,test]"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

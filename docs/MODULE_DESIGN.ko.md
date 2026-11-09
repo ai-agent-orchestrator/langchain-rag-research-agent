@@ -89,7 +89,7 @@ README 저장소 순서 문구(반영안):
 ### 2-1. 패키지 구조
 
 ```text
-src/memvid_guardrail/
+src/rag_research_agent/
   core/      contracts.py   Chunk, Evidence, RetrievalResult, IndexManifest, 상태·오류 코드 (의존성 없음)
   guard/     masking.py · input_policy.py · semantic_signal(lab) · context.py · risk.py · network.py
   embed/     providers.py   Embedder 규약, E5 · Ollama · 가짜
@@ -383,9 +383,9 @@ Llama 계열을 씁니다. 모델 ID·정밀도·서빙 방식(Ollama 로컬 서
 
 | 설계 절 | 프로토타입 위치 | 비고 |
 | --- | --- | --- |
-| §2 store·retrieve·embed·ingest | `src/memvid_guardrail/{store,retrieve,embed,ingest}` | ① B01~B02b 참고 구현에서 옮김 |
-| §2 rag·observe | `src/memvid_guardrail/{rag,observe}` | 가짜 모델 시험만 |
-| §7-1 브리프 | `src/memvid_guardrail/lab/briefing` (Draft PR #5) | 가짜 임베더 결과 |
-| §7-2 골든셋 | `src/memvid_guardrail/lab/golden.py`, `scripts/compare_embedders.py` (Draft PR #5) | 가짜 임베더 결과 |
+| §2 store·retrieve·embed·ingest | `src/rag_research_agent/{store,retrieve,embed,ingest}` | ① B01~B02b 참고 구현에서 옮김 |
+| §2 rag·observe | `src/rag_research_agent/{rag,observe}` | 가짜 모델 시험만 |
+| §7-1 브리프 | `src/rag_research_agent/lab/briefing` (Draft PR #5) | 가짜 임베더 결과 |
+| §7-2 골든셋 | `src/rag_research_agent/lab/golden.py`, `scripts/compare_embedders.py` (Draft PR #5) | 가짜 임베더 결과 |
 
 나머지 행은 `main`의 M0 뼈대에 있습니다. 설계 v1.0 확정 뒤 필요한 부분만 다시 판단해 M1부터 정식으로 만듭니다.

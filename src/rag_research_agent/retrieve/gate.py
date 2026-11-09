@@ -6,7 +6,7 @@ MATURITY = "incubating"
 from dataclasses import dataclass
 from typing import Sequence
 
-from memvid_guardrail.core.contracts import (Chunk, Evidence, RetrievalMode, RetrievalResult,
+from rag_research_agent.core.contracts import (Chunk, Evidence, RetrievalMode, RetrievalResult,
                                             RetrievalStatus)
 
 

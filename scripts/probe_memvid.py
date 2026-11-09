@@ -17,7 +17,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from memvid_guardrail.guard.network import ATTEMPTS, block_network, scrub_environment
+from rag_research_agent.guard.network import ATTEMPTS, block_network, scrub_environment
 
 REQUIRED = ["telemetry_off", "put_external_vectors", "query_vector_search", "score_direction",
             "lexical_search", "dimension_mismatch_put", "dimension_mismatch_query", "seal_and_reopen",
@@ -36,7 +36,7 @@ def main() -> int:
     args = parser.parse_args()
     scrub_environment()
     block_network()
-    from memvid_guardrail.store.memvid_store import load_memvid
+    from rag_research_agent.store.memvid_store import load_memvid
     results: dict[str, dict] = {}
 
     def record(name, ok, detail=""):
