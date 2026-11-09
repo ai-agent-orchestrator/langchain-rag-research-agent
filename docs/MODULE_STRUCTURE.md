@@ -41,3 +41,10 @@ Two cross-module imports predate M0 and are listed in `KNOWN_DEBT` in the struct
 ## Test baseline (this environment, `memvid-sdk` not installed)
 
 Before rename (main 051dc47): 44 passed, 4 failed, 4 errors. After M0: 57 passed, same 4 failed, same 4 errors. All 8 are in `test_memvid_store.py` / `test_index_lifecycle.py` and fail with `ModuleNotFoundError: memvid_sdk`; they need the `memvid` extra and were not run against the real SDK here.
+
+## After Equalizer v0 (2026-11-09)
+
+Working parts (uncalibrated): `edge/rules.py`, `edge/scorer.py`, `edge/focus.py`, `knobs/mapper.py`, `diet/dieter.py`,
+`compose/extractive.py`, `ingest/sentences.py`, assembled by `rag/brief.py` (`build_brief`, parts injected via `Parts`).
+Data: `data/golden_rules/research_v1.json`, `data/equalizer/presets_v0.json`, `data/golden_sets/*.json`.
+See [EQUALIZER_V0.ko.md](EQUALIZER_V0.ko.md).
