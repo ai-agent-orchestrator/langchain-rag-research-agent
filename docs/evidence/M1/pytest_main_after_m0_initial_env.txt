@@ -1,0 +1,129 @@
+..............................................FF.................        [100%]
+================================== FAILURES ===================================
+_________________ test_control_environment_alone_would_trace __________________
+tests\test_rag.py:193: in test_control_environment_alone_would_trace
+    assert armed_tracing, "tracing did not activate; the guard test below would be meaningless"
+E   AssertionError: tracing did not activate; the guard test below would be meaningless
+E   assert []
+_________ test_serving_guard_blocks_tracing_even_when_env_enables_it __________
+tests\test_rag.py:200: in test_serving_guard_blocks_tracing_even_when_env_enables_it
+    asyncio.run(graph.ainvoke({"request_text": "합성 010-1234-5678"}, config=serving_config()))
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:194: in run
+    with Runner(debug=debug, loop_factory=loop_factory) as runner:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:58: in __enter__
+    self._lazy_init()
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:137: in _lazy_init
+    self._loop = events.new_event_loop()
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py:823: in new_event_loop
+    return get_event_loop_policy().new_event_loop()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\events.py:720: in new_event_loop
+    return self._loop_factory()
+           ^^^^^^^^^^^^^^^^^^^^
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\windows_events.py:316: in __init__
+    super().__init__(proactor)
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py:640: in __init__
+    self._make_self_pipe()
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py:787: in _make_self_pipe
+    self._ssock, self._csock = socket.socketpair()
+                               ^^^^^^^^^^^^^^^^^^^
+C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\socket.py:623: in _fallback_socketpair
+    csock.connect((addr, port))
+tests\test_rag.py:172: in refuse
+    raise OSError("blocked")
+E   OSError: blocked
+============================== warnings summary ===============================
+tests/test_structure.py::test_every_module_declares_a_tier
+  C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\ast.py:52: RuntimeWarning: coroutine 'Pregel.ainvoke' was never awaited
+    return compile(source, filename, mode, flags,
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_structure.py::test_every_module_declares_a_tier
+  C:\myLectureWs\python-memvid-guardrail\.venv\Lib\site-packages\_pytest\unraisableexception.py:63: PytestUnraisableExceptionWarning: Exception ignored in: <function BaseEventLoop.__del__ at 0x00000188E7959580>
+  
+  Traceback (most recent call last):
+    File "C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 732, in __del__
+      self.close()
+    File "C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 697, in close
+      self._close_self_pipe()
+    File "C:\Users\Codelab\AppData\Local\Programs\Python\Python312\Lib\asyncio\proactor_events.py", line 779, in _close_self_pipe
+      self._ssock.close()
+      ^^^^^^^^^^^
+  AttributeError: 'ProactorEventLoop' object has no attribute '_ssock'
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=================================== PASSES ====================================
+=========================== short test summary info ===========================
+PASSED tests/test_chunking.py::test_chunks_respect_budget_and_keep_title_and_headings
+PASSED tests/test_chunking.py::test_chunking_is_deterministic_and_ids_are_unique
+PASSED tests/test_chunking.py::test_small_budget_forces_overlap_within_a_section
+PASSED tests/test_chunking.py::test_learning_masking_patterns
+PASSED tests/test_contracts.py::test_query_contract_excludes_client_name_and_blank_step
+PASSED tests/test_contracts.py::test_chunk_hash_is_bound_to_text
+PASSED tests/test_contracts.py::test_manifest_rejects_duplicates_and_checks_model_identity
+PASSED tests/test_contracts.py::test_status_and_evidence_must_agree
+PASSED tests/test_contracts.py::test_document_ids_are_distinct_in_rank_order_and_citations_are_subset
+PASSED tests/test_contracts.py::test_retrieval_failure_has_its_own_code
+PASSED tests/test_eval_two_axis.py::test_found_but_refused_is_reported_separately_from_ranking
+PASSED tests/test_eval_two_axis.py::test_every_outcome_is_named
+PASSED tests/test_eval_two_axis.py::test_rule_is_frozen_on_compare_and_confirm_refuses_reuse
+PASSED tests/test_eval_two_axis.py::test_repo_golden_files_load_and_reach_the_no_evidence_share
+PASSED tests/test_eval_two_axis.py::test_golden_checks_catch_common_mistakes
+PASSED tests/test_eval_two_axis.py::test_end_to_end_with_the_fake_embedder_on_repo_data
+PASSED tests/test_index_lifecycle.py::test_versions_rollback_and_prune
+PASSED tests/test_index_lifecycle.py::test_activate_refuses_tampered_or_mismatched_versions
+PASSED tests/test_memvid_store.py::test_telemetry_is_forced_off
+PASSED tests/test_memvid_store.py::test_publish_verifies_every_chunk_and_activates_pointer
+PASSED tests/test_memvid_store.py::test_many_chunks_survive_batched_writes
+PASSED tests/test_memvid_store.py::test_versions_are_immutable
+PASSED tests/test_memvid_store.py::test_tampered_file_and_wrong_embedder_are_refused
+PASSED tests/test_memvid_store.py::test_missing_pointer_is_unavailable_not_empty
+PASSED tests/test_memvid_store.py::test_lex_terms_drop_labels_masks_and_operators
+PASSED tests/test_memvid_store.py::test_gate_statuses
+PASSED tests/test_module_fakes.py::test_core_types_validate
+PASSED tests/test_module_fakes.py::test_ingest_keeps_original_offsets
+PASSED tests/test_module_fakes.py::test_guard_fakes
+PASSED tests/test_module_fakes.py::test_ontology_fakes_never_drop_segments
+PASSED tests/test_module_fakes.py::test_edge_fakes_one_score_per_segment
+PASSED tests/test_module_fakes.py::test_knobs_fake_maps_shield_to_extract_only
+PASSED tests/test_module_fakes.py::test_diet_fake_never_truncates
+PASSED tests/test_module_fakes.py::test_compose_extractive_and_checked
+PASSED tests/test_module_fakes.py::test_retrieve_store_observe_fakes
+PASSED tests/test_rag.py::test_assembled_answer_uses_server_sources_and_checks_fields
+PASSED tests/test_rag.py::test_citations_must_come_from_retrieved_evidence
+PASSED tests/test_rag.py::test_model_cannot_set_evidence_status_or_extra_fields
+PASSED tests/test_rag.py::test_no_evidence_template_is_fixed_and_checked
+PASSED tests/test_rag.py::test_chain_returns_strict_draft_from_any_chat_model
+PASSED tests/test_rag.py::test_evidence_and_intake_stay_inside_the_human_message_as_data
+PASSED tests/test_rag.py::test_evidence_branch_generates_once
+PASSED tests/test_rag.py::test_no_evidence_branch_makes_zero_model_calls[EMPTY]
+PASSED tests/test_rag.py::test_no_evidence_branch_makes_zero_model_calls[BELOW_THRESHOLD]
+PASSED tests/test_rag.py::test_retrieval_failure_is_not_turned_into_no_evidence
+PASSED tests/test_rag.py::test_concurrent_requests_keep_separate_state
+PASSED tests/test_rag.py::test_allowlist_redacts_everything_unknown
+PASSED tests/test_research_and_eval.py::test_duplicates_group_without_deleting_and_protected_leads
+PASSED tests/test_research_and_eval.py::test_mmr_prefers_diverse_items_under_a_budget_and_keeps_protected
+PASSED tests/test_research_and_eval.py::test_novelty_defaults_to_novel_when_nothing_close
+PASSED tests/test_research_and_eval.py::test_random_baseline_matches_the_stated_assumption
+PASSED tests/test_research_and_eval.py::test_hit_at_k_counts_only_evidence_items
+PASSED tests/test_research_and_eval.py::test_calibration_never_lets_no_evidence_pass
+PASSED tests/test_research_and_eval.py::test_rrf_uses_ranks_and_ignores_duplicates
+PASSED tests/test_research_and_eval.py::test_semantic_guard_only_raises_review_and_finds_hidden_line
+PASSED tests/test_structure.py::test_every_module_declares_a_tier
+PASSED tests/test_structure.py::test_lab_modules_live_in_lab_and_say_so
+PASSED tests/test_structure.py::test_non_lab_code_never_imports_lab
+PASSED tests/test_structure.py::test_core_has_no_third_party_imports
+PASSED tests/test_structure.py::test_modules_do_not_import_each_other_except_through_core
+PASSED tests/test_structure.py::test_langchain_only_in_rag_or_ontology_adapter_files
+PASSED tests/test_structure.py::test_pure_modules_import_without_optional_dependencies
+PASSED tests/test_structure.py::test_removing_any_one_module_leaves_the_others_importable
+FAILED tests/test_rag.py::test_control_environment_alone_would_trace - Assert...
+FAILED tests/test_rag.py::test_serving_guard_blocks_tracing_even_when_env_enables_it
+2 failed, 63 passed, 2 warnings in 27.06s

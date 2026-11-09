@@ -1,0 +1,21 @@
+...............                                                          [100%]
+=================================== PASSES ====================================
+=========================== short test summary info ===========================
+PASSED tests/test_rag.py::test_assembled_answer_uses_server_sources_and_checks_fields
+PASSED tests/test_rag.py::test_citations_must_come_from_retrieved_evidence
+PASSED tests/test_rag.py::test_model_cannot_set_evidence_status_or_extra_fields
+PASSED tests/test_rag.py::test_no_evidence_template_is_fixed_and_checked
+PASSED tests/test_rag.py::test_chain_returns_strict_draft_from_any_chat_model
+PASSED tests/test_rag.py::test_evidence_and_intake_stay_inside_the_human_message_as_data
+PASSED tests/test_rag.py::test_evidence_branch_generates_once
+PASSED tests/test_rag.py::test_no_evidence_branch_makes_zero_model_calls[EMPTY]
+PASSED tests/test_rag.py::test_no_evidence_branch_makes_zero_model_calls[BELOW_THRESHOLD]
+PASSED tests/test_rag.py::test_retrieval_failure_is_not_turned_into_no_evidence
+PASSED tests/test_rag.py::test_concurrent_requests_keep_separate_state
+PASSED tests/test_rag.py::test_control_environment_alone_would_trace
+PASSED tests/test_rag.py::test_serving_guard_blocks_tracing_even_when_env_enables_it
+PASSED tests/test_rag.py::test_fixture_allows_internal_loopback_pair_but_blocks_uploads
+PASSED tests/test_rag.py::test_allowlist_redacts_everything_unknown
+15 passed in 0.64s
+Failed to get info from http://127.0.0.1:9: LangSmithConnectionError('Connection error caused failure to GET /info in LangSmith API. Please confirm your LANGCHAIN_ENDPOINT. ConnectionError(MaxRetryError(\'HTTPConnectionPool(host=\\\'127.0.0.1\\\', port=9): Max retries exceeded with url: /info (Caused by NewConnectionError("HTTPConnection(host=\\\'127.0.0.1\\\', port=9): Failed to establish a new connection: [WinError 10061] 대상 컴퓨터에서 연결을 거부했으므로 연결하지 못했습니다"))\'))\nContent-Length: None\nAPI Key: lsv2_***************st')
+Run compression is not enabled. Please update to the latest version of LangSmith. Falling back to regular multipart ingestion.

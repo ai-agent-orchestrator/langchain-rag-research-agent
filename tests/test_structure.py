@@ -43,7 +43,7 @@ def test_non_lab_code_never_imports_lab():
 
 
 def test_core_has_no_third_party_imports():
-    allowed = {"__future__", "dataclasses", "enum", "hashlib", "typing"}
+    allowed = {"__future__", "dataclasses", "enum", "hashlib", "typing", "re"}
     for path in (PKG / "core").glob("*.py"):
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             if isinstance(node, ast.ImportFrom) and node.module:
@@ -61,7 +61,6 @@ ASSEMBLER = "rag"   # the only module allowed to wire other modules together
 # Known cross-module imports that predate M0. The set must match reality exactly, so it can only shrink.
 KNOWN_DEBT = {
     ("ingest", "guard"),     # ingest/chunking.py uses guard.masking directly (should receive a Masker)
-    ("store", "retrieve"),   # store/memvid_store.py uses retrieve.keyword.lex_terms (move into core or inject)
 }
 OPTIONAL = ("memvid_sdk", "sentence_transformers", "langchain", "langchain_core", "langgraph", "langsmith")
 PURE = ("core", "edge", "diet", "knobs", "compose")
