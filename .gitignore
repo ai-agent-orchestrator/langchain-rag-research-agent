@@ -15,3 +15,4 @@ data/*
 *.npy
 *.npz
 .env
+.runs/

@@ -2,6 +2,7 @@
 
 작성: 2026-11-09 · 상태: **v1 초안, 검증 전.** 모든 규칙은 제안이며 실제 문서에서 측정하지 않았다. 예시 문장은 전부 합성이다.
 상위 문서: [DESIGN.ko.md](DESIGN.ko.md) 7절(엣지 점수와 Token Diet).
+실행해 보기: [FEEDBACK_LOOP.ko.md](FEEDBACK_LOOP.ko.md) (규칙 파일 `data/golden_rules/research_v1.json`, 골든셋 `data/golden_sets/`).
 
 ## 0. 이 문서의 위치
 
