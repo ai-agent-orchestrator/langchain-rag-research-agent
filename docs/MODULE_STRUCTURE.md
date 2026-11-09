@@ -48,3 +48,10 @@ Working parts (uncalibrated): `edge/rules.py`, `edge/scorer.py`, `edge/focus.py`
 `compose/extractive.py`, `ingest/sentences.py`, assembled by `rag/brief.py` (`build_brief`, parts injected via `Parts`).
 Data: `data/golden_rules/research_v1.json`, `data/equalizer/presets_v0.json`, `data/golden_sets/*.json`.
 See [EQUALIZER_V0.ko.md](EQUALIZER_V0.ko.md).
+
+## Vector store choice (2026-11-09)
+
+Owner decision: develop with **Chroma** first (`store/chroma_store.py`, extra `chroma`, telemetry off, local files),
+keep **memvid** (`store/memvid_store.py`) as a swappable alternative. Both expose `search_vector`, `search_lex`,
+`vector_count`, `close` and return `(Chunk, score, rank)`. Reason: memvid writes were intermittently refused on
+Windows (`os error 5` / index IO), while reads and results were fine; Chroma is what the owner uses in class.
