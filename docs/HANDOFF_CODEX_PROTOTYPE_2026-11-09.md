@@ -14,7 +14,7 @@
 | 필터 | 프로필 파일 하나 = 분야 필터 하나 (`profiles/*.json`), 누구나 템플릿 복사로 만들 수 있게 |
 | LLM | **프로토타입에서는 연결하지 않음.** 추출 브리프까지 |
 | 실행 방식 | **명령줄 + 보드 HTML** |
-| 입력 | **구글 문서, X 웹페이지 주소** (+ 텍스트 파일) |
+| 입력 | **구글 문서, X 웹페이지 주소, 깃허브 웹페이지 주소, PDF** (+ 텍스트·docx 파일) |
 | 소송 감량 순서 | `profiles/litigation.json`의 초안 그대로 실험 (O1은 보드 결과로 나중에 결정) |
 
 ## 2. 지금 있는 것 (main)
@@ -34,6 +34,8 @@
 - **네트워크:** 시험에서는 절대 외부 접속하지 않는다(가짜 fetcher). 실행 시 URL 가져오기는 `--allow-network`를 줬을 때만.
 - **X(트위터):** 자동 수집하지 않는다(로그인 요구·약관). X 주소가 오면 "본문을 복사해 `--text`나 파일로 넣으라"는 안내 오류를 낸다.
 - **구글 문서:** "링크가 있는 모든 사용자" 공유 문서만 `export?format=txt` 주소로 가져온다. 비공개 문서는 내려받은 `.txt`/`.docx`로. OAuth 연동은 하지 않는다.
+- **깃허브:** 공개 저장소만. 토큰·인증 연동은 하지 않는다.
+- **PDF:** 글자 레이어가 있는 PDF만. 스캔 이미지 PDF(OCR)는 하지 않는다.
 - LLM·외부 API 호출 금지, `.env` 접근 금지, push는 브랜치에만, main 병합 금지.
 - 기존 시험의 기대값 수정·skip·삭제 금지. 막히면 원인을 보고서에 적고 멈춘다.
 - 보고: 구현·연결·시험 통과를 구분하고 통과 개수를 적는다. "전체 통과"라고 쓰지 않는다.
@@ -67,10 +69,12 @@ coder: codex
 - `fetch_url(url, fetcher)` — `fetcher`는 주입(기본은 `urllib.request`). HTML이면 표준 `html.parser`로 `script/style/nav/footer`를 빼고 본문 텍스트 추출.
 - `google_doc_export_url(url)` — `docs.google.com/document/d/<id>/...` → `.../export?format=txt`. 접근 거부(로그인 페이지·403)면 "공유 설정 또는 내려받기" 안내 오류.
 - `is_x_url(url)` — `x.com`, `twitter.com`이면 **수집하지 않고** 안내 오류.
+- `load_pdf(path)` — 선택 의존성 `pdf` extra(`pypdf`). 페이지별 텍스트를 이어 붙이고 페이지 번호를 `Document`에 남긴다. 추출 글자가 거의 없으면 "스캔 PDF로 보임, OCR 미지원" 안내 오류. `--url`이 PDF(`Content-Type: application/pdf` 또는 `.pdf`)면 내려받아 같은 함수로 처리.
+- `github_raw_url(url)` — `github.com/<owner>/<repo>/blob/<ref>/<path>` → `raw.githubusercontent.com/<owner>/<repo>/<ref>/<path>`. 저장소 첫 화면 주소(`github.com/<owner>/<repo>`)는 README를 가져온다(`.../HEAD/README.md`, 없으면 `README.ko.md`·`readme.md` 순). 이슈·PR·기타 페이지는 일반 HTML 추출. 비공개·404면 안내 오류. 마크다운은 그대로 텍스트로 쓴다.
 
 ### 명령 (`rag/cli.py`, `pyproject`의 `[project.scripts] rra = "rag_research_agent.rag.cli:main"`)
 ```
-rra brief  --profile litigation  (--file a.txt | --url https://... | --text "...")  [--task "..."] [--budget 600] [--focus 금리:2 가계부채] [--auto-focus 2] [--allow-network] [--out .runs]
+rra brief  --profile litigation  (--file a.txt|a.md|a.docx|a.pdf | --url https://... | --text "...")  [--task "..."] [--budget 600] [--focus 금리:2 가계부채] [--auto-focus 2] [--allow-network] [--out .runs]
 rra board  [--profiles litigation politics] [--sets data/golden_sets/*.json] [--budget 300]
 rra score  --set data/golden_sets/x.json [--packs macro] [--focus ...]      # golden_edge_eval 래핑
 rra profiles                                                               # 목록과 한 줄 설명
@@ -80,11 +84,11 @@ rra profiles                                                               # 목
 - 기존 `scripts/*.py`는 그대로 둔다(호환). CLI가 같은 함수를 호출하게 한다.
 
 ### 완료 기준
-1. 가짜 fetcher로 HTML 본문 추출, 구글 문서 주소 변환, 접근 거부 안내, X 주소 거절을 시험한다(네트워크 0).
+1. 가짜 fetcher로 HTML 본문 추출, 구글 문서 주소 변환, 깃허브 blob→raw 변환과 README 경로, 접근 거부 안내, X 주소 거절을 시험한다(네트워크 0). PDF는 시험 중에 합성 PDF를 만들어(reportlab 없이도 되는 최소 PDF 바이트 또는 pypdf로 생성) 추출과 "스캔 PDF" 안내를 시험한다. `pypdf`가 없으면 그 시험은 명시적으로 skip하지 말고 선택 의존성 안내 오류가 나는지를 시험한다.
 2. `rra brief --profile litigation --file <합성 txt>`가 `.runs/` 아래 세 파일을 만든다(시험은 `tmp_path`).
 3. `--allow-network` 없이 `--url`을 주면 실행하지 않고 안내한다.
 4. 구조 시험 포함 전체 시험이 기준선 이상(새 시험 개수 별도 표기).
-5. `docs/PROTOTYPE_CLI.ko.md`: 대표용 사용법(설치 한 줄, 명령 예 5개, 결과 파일 설명, X·구글 문서 제약).
+5. `docs/PROTOTYPE_CLI.ko.md`: 대표용 사용법(설치 한 줄, 명령 예 5개, 결과 파일 설명, X·구글 문서·깃허브·PDF 제약).
 
 ### 멈춤 조건
 - 금지 파일 수정이 필요하거나 구조 시험을 통과시키려면 `KNOWN_DEBT`를 늘려야 할 때.
@@ -144,7 +148,7 @@ after: P3
 
 ## 5. 하지 않는 것 (이번 프로토타입)
 
-LLM 백본 호출, E5 임베딩 관련도(τ 보정 필요, 다음 단계), 차트 이미지 입력(O6), 예측 모듈(O8), X 자동 수집, 구글 OAuth, 웹 화면, 골든룰·프로필 내용 수정.
+LLM 백본 호출, E5 임베딩 관련도(τ 보정 필요, 다음 단계), 차트 이미지 입력(O6), 예측 모듈(O8), X 자동 수집, 구글 OAuth, 깃허브 인증, 스캔 PDF OCR, 웹 화면, 골든룰·프로필 내용 수정.
 
 ## 6. 아침에 대표가 볼 것
 
