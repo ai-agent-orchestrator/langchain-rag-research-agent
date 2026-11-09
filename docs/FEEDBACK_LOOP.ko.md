@@ -7,10 +7,28 @@
 
 | 파일 | 무엇 | 누가 고치나 |
 | --- | --- | --- |
-| `data/golden_rules/research_v1.json` | 규칙: 인과 30개 신호 표현, 기둥별 표현, 매크로 묶음, 클리셰 표현, 가중치 | 결과를 보고 표현·가중치 조정 |
+| `data/golden_rules/research_v1.json` | 규칙: 인과·상관·트렌드·수치·누가언제·클리셰·가중치 규칙, 분야 묶음, 가중치 | 결과를 보고 표현·가중치 조정 |
 | `data/golden_sets/<이름>.json` | 시험지: 초안(`draft`), 꼭 남길 문장(`must_keep`), 버릴 문장(`cliche`) | 대표가 초안에서 문장을 골라 **그대로 복사** |
 
 공개 저장소에 올리는 골든셋은 **합성 자료만**이다. 실제 자료로 만든 골든셋은 `.runs/`처럼 커밋하지 않는 곳에 두거나 비공개로 관리한다.
+
+## 규칙 구성 (현재)
+
+공통 150개(인과 35, 상관 25, 트렌드 20, 수치 20, 누가·언제 10, 클리셰 20, 가중치 20) + 분야 묶음 50개(`macro`, `geopolitics`, `tech`, `defense`, `legal` 각 10~12). 전체 목록은 [GOLDEN_RULES_CATALOG.ko.md](GOLDEN_RULES_CATALOG.ko.md)(JSON에서 자동 생성).
+
+- **클리셰 정책:** 클리셰 표현이 있어도 같은 문장에 수치·인과·기둥·묶음 신호가 있으면 감점하지 않고 "검토"로만 표시한다. 맥락은 말투만으로 정해지지 않는다.
+- **법률:** `--packs legal`로 인과 35개 위에 법률 표지 10개(L1~L10)를 얹는다. 문장 보존용 표지일 뿐 법리 판단은 하지 않는다.
+
+## 집중 키워드 (최대 5개)
+
+```bash
+# 직접 입력: key player, 시점, 무엇이든. 숫자로 상대 가중치
+python scripts/golden_edge_eval.py --set data/golden_sets/macro_synthetic_v1.json --packs macro --focus 금리:2 가계부채 2025년
+# 자동 빈도: N번 이상 나온 의미 있는 단어로 남은 자리를 채움 (직접 입력이 우선)
+python scripts/golden_edge_eval.py --set data/golden_sets/legal_synthetic_v1.json --packs legal --focus 을 --auto-focus 2
+```
+
+보고서에 **집중 브리프**가 추가된다: 키워드가 든 문장만 원문 그대로 강조해 보여 주고, 항상 보호 문장은 단서로 남기고, 나머지는 **생략하되 번호를 남긴다**. 키워드는 단어 단위로 맞춘다(한 글자 이름 "을"은 "을은·을에게"에 맞고 "반환을"에는 안 맞음). 집중 키워드에 안 걸린 중요한 문장(예: 금액 문장)도 생략될 수 있으니 생략 번호를 확인한다.
 
 ## 한 바퀴
 

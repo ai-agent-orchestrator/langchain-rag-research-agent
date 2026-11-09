@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from rag_research_agent.core.types import Segment  # noqa: E402
 from rag_research_agent.edge.rules import load_rules  # noqa: E402
-from rag_research_agent.edge.scorer import RuleEdgeScorer  # noqa: E402
+from rag_research_agent.edge.scorer import RuleEdgeScorer, focus_brief  # noqa: E402
 
 SENT_END = re.compile(r"(?<=[.!?。])\s+|\n+")
 
@@ -39,14 +39,14 @@ def split_sentences(text: str) -> list[Segment]:
     return segs
 
 
-def evaluate(rules_path: Path, set_path: Path, packs: list[str]) -> dict:
+def evaluate(rules_path: Path, set_path: Path, packs: list[str], focus: dict[str, float] | None = None) -> dict:
     rules = load_rules(rules_path)
     gset_raw = set_path.read_bytes()
     gset = json.loads(gset_raw.decode("utf-8"))
     text = gset["draft"]
     segs = split_sentences(text)
     sent = {s.segment_id: text[s.start:s.end] for s in segs}
-    scorer = RuleEdgeScorer(rules, text, packs)
+    scorer = RuleEdgeScorer(rules, text, packs, focus=focus)
     scores = {e.segment_id: e for e in scorer.score(segs)}
     expl = {s.segment_id: scorer.explain_one(s) for s in segs}
     order = sorted(segs, key=lambda s: (-scores[s.segment_id].total, s.start))
@@ -68,11 +68,14 @@ def evaluate(rules_path: Path, set_path: Path, packs: list[str]) -> dict:
         label = "KEEP" if i in keep_ids else "CLICHE" if i in cliche_ids else ""
         why = []
         if e.causal_ids: why.append("인과" + ",".join(map(str, e.causal_ids)))
-        if e.pillars: why.append("/".join(e.pillars))
-        if e.packs: why.append("pack:" + "/".join(e.packs))
+        if e.pillars: why.append(",".join(e.pillars))
+        if e.packs: why.append("pack:" + ",".join(e.packs))
         if e.numbers: why.append(f"수치{e.numbers}")
-        if e.cliches: why.append("클리셰:" + "/".join(e.cliches))
+        if e.cliches:
+            why.append(("클리셰표현(내용 있음→감점 없음, 검토):" if e.has_content else "클리셰:") + ",".join(e.cliches))
         if e.protected: why.append("항상보호")
+        if e.focus: why.append("집중:" + ",".join(e.focus))
+        if e.boosts: why.append("가중:" + ",".join(e.boosts))
         rows.append({"rank": rank[i], "id": i, "score": scores[i].total, "label": label,
                      "why": " ".join(why) or "-", "text": sent[i]})
     metrics = {
@@ -89,6 +92,8 @@ def evaluate(rules_path: Path, set_path: Path, packs: list[str]) -> dict:
         "rule_version": rules.rule_version,
         "golden_version": hashlib.sha256(gset_raw).hexdigest()[:12],
         "packs": packs,
+        "focus": focus or {},
+        "brief": focus_brief(scorer, segs) if focus else None,
         "metrics": metrics,
         "misses": [r["id"] for r in rows if r["label"] == "KEEP" and r["id"] not in top_k],
         "false_highs": [r["id"] for r in rows if r["id"] in top_k and r["label"] != "KEEP"],
@@ -124,6 +129,7 @@ def render(run: dict, prev: dict | None) -> str:
         if prev["rule_version"] != run["rule_version"]: changed.append("rules")
         if prev["golden_version"] != run["golden_version"]: changed.append("golden set")
         if prev.get("packs") != run["packs"]: changed.append("packs")
+        if prev.get("focus", {}) != run.get("focus", {}): changed.append("focus")
         out += [f"## 지난 실행과 비교 ({prev['time']})", "",
                 f"바뀐 것: {', '.join(changed) or '없음'}" + ("  ⚠ 두 가지 이상을 한 번에 바꿨어요. 무엇 때문인지 구분이 어려워요." if len(changed) > 1 else ""), ""]
         for key in ("keep_recall_at_k", "cliche_in_bottom", "keep_mean_rank"):
@@ -133,6 +139,14 @@ def render(run: dict, prev: dict | None) -> str:
                 tag = "좋아짐" if better else ("같음" if a == b else "나빠짐")
                 out.append(f"- {key}: {a} → {b} ({tag})")
         out.append("")
+    if run.get("brief"):
+        b = run["brief"]
+        out += ["## 집중 브리프 (원문 그대로, 키워드 강조)", "",
+                "집중 키워드: " + ", ".join(f"{k}({w})" for k, w in run["focus"].items()), ""]
+        out += [f"- `{i}` {t}" for i, t, _ in b["focus"]] or ["- (키워드가 들어간 문장 없음)"]
+        if b["caveats"]:
+            out += ["", "단서 (항상 보호, 키워드 없어도 유지):"] + [f"- `{i}` {t}" for i, t in b["caveats"]]
+        out += ["", f"생략 {len(b['omitted'])}문장: {', '.join(b['omitted']) or '-'} (조용히 버리지 않고 번호를 남김)", ""]
     if run["unknown_lines"]:
         out += ["## 골든셋 문장이 초안에서 안 보여요 (원문과 똑같이 복사해 주세요)", ""]
         out += [f"- {u}" for u in run["unknown_lines"]] + [""]
@@ -149,11 +163,22 @@ def main(argv=None) -> int:
     ap.add_argument("--rules", default=str(ROOT / "data/golden_rules/research_v1.json"))
     ap.add_argument("--set", required=True)
     ap.add_argument("--packs", nargs="*", default=[])
+    ap.add_argument("--focus", nargs="*", default=[], help='up to 5 keywords, optional weight: 금리:2 가계부채')
+    ap.add_argument("--auto-focus", type=int, default=None, metavar="N",
+                    help="fill remaining focus slots (max 5) with words appearing at least N times")
     ap.add_argument("--runs", default=str(ROOT / ".runs"))
     ap.add_argument("--no-history", action="store_true")
     a = ap.parse_args(argv)
     runs = Path(a.runs)
-    run = evaluate(Path(a.rules).resolve(), Path(a.set).resolve(), a.packs)
+    focus = {}
+    for f in a.focus:
+        k, _, w = f.partition(":")
+        focus[k] = float(w) if w else 1.0
+    if a.auto_focus:
+        from rag_research_agent.edge.focus import build_focus
+        draft = json.loads(Path(a.set).read_text(encoding="utf-8"))["draft"]
+        focus = build_focus(draft, focus, auto_min_count=a.auto_focus)
+    run = evaluate(Path(a.rules).resolve(), Path(a.set).resolve(), a.packs, focus or None)
     history = runs / "edge_eval_history.jsonl"
     prev = previous_run(history, run["set"])
     report = render(run, prev)
@@ -161,7 +186,7 @@ def main(argv=None) -> int:
     if not a.no_history:
         runs.mkdir(parents=True, exist_ok=True)
         with history.open("a", encoding="utf-8") as f:
-            f.write(json.dumps({k: v for k, v in run.items() if k != "rows"}, ensure_ascii=False) + "\n")
+            f.write(json.dumps({k: v for k, v in run.items() if k not in ("rows", "brief")}, ensure_ascii=False) + "\n")
         (runs / "last_report.md").write_text(report, encoding="utf-8")
     return 0
 
