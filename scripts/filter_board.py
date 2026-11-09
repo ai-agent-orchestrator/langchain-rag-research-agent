@@ -1,6 +1,7 @@
 """Numeric board: run every filter (and/or a knob grid) on every golden set and compare.
 
-    python scripts/filter_board.py                       # all filters x all golden sets
+    python scripts/filter_board.py                       # all filter profiles x all golden sets
+    python scripts/filter_board.py --profiles litigation my_filter
     python scripts/filter_board.py --filters litigation politics --budget 300
     python scripts/filter_board.py --grid                # also the 3x3 knob grid with no filter
 
@@ -42,11 +43,17 @@ def measure(gset: dict, brief, trace, budget: int) -> dict:
     }
 
 
-def run_board(sets: list[Path], filters: list[str], grid: bool, budget: int, task: str | None) -> list[dict]:
+def run_board(sets: list[Path], filters: list[str], grid: bool, budget: int, task: str | None,
+              profiles: list[str] = ()) -> list[dict]:
+    from rag_research_agent.rag.profile import Equalizer
     parts = Parts().ready()
+    eqs = {name: Equalizer.from_profile(name) for name in profiles}
     rows = []
     for sp in sets:
         g = json.loads(sp.read_text(encoding="utf-8"))
+        for name, eq in eqs.items():
+            b, t = eq.brief(g["draft"], task, budget)
+            rows.append({"set": g.get("name", sp.stem), "config": f"profile:{name}", "settings": t.settings, **measure(g, b, t, budget)})
         configs = [(f, dict(preset=f)) for f in filters]
         if grid:
             configs += [(f"knobs s={s} w={w}", dict(knobs=Knobs(s, w))) for s in (0.2, 0.5, 0.8) for w in (0.2, 0.5, 0.8)]
@@ -135,13 +142,16 @@ def main(argv=None) -> int:
     ap.add_argument("--sets", nargs="*", default=sorted(str(p) for p in (ROOT / "data/golden_sets").glob("*.json")))
     ap.add_argument("--filters", nargs="*")
     ap.add_argument("--grid", action="store_true")
+    ap.add_argument("--profiles", nargs="*", help="filter profiles (profiles/*.json); default: all when --filters is not given")
     ap.add_argument("--budget", type=int, default=300)
     ap.add_argument("--task")
     ap.add_argument("--runs", default=str(ROOT / ".runs"))
     a = ap.parse_args(argv)
     cfg = load_config(DEFAULT_CONFIG)
-    filters = a.filters or list(dict.fromkeys(p.name for p in cfg.presets.values()))
-    rows = run_board([Path(s) for s in a.sets], filters, a.grid, a.budget, a.task)
+    from rag_research_agent.rag.profile import list_profiles
+    profiles = a.profiles if a.profiles is not None else ([] if a.filters else list_profiles())
+    filters = a.filters if a.filters is not None else ([] if a.profiles else [])
+    rows = run_board([Path(s) for s in a.sets], filters, a.grid, a.budget, a.task, profiles)
     runs = Path(a.runs)
     runs.mkdir(parents=True, exist_ok=True)
     history = runs / "board_history.jsonl"

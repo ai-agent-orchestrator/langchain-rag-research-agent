@@ -1,0 +1,80 @@
+{
+  "name": "tech",
+  "profile_version": 1,
+  "label": "기술·기업",
+  "description": "발표와 실제, 측정 조건, 시점 구분",
+  "packs": [
+    "tech"
+  ],
+  "knobs": {
+    "similarity": "Mid",
+    "edge_weight": "Mid"
+  },
+  "ontology": {
+    "classes": [
+      {
+        "name": "Constraint_Guardrail",
+        "description": "한계·조건·위험. 절대 빼지 않음",
+        "cues": [
+          "확인되지 않았다",
+          "에서만",
+          "경우에만",
+          "단정할 수 없",
+          "제외",
+          "한계",
+          "위험",
+          "하지 않는다"
+        ]
+      },
+      {
+        "name": "검증",
+        "description": "실측·독립 검증",
+        "cues": [
+          "독립",
+          "검증",
+          "실측",
+          "벤치마크"
+        ]
+      },
+      {
+        "name": "발표",
+        "description": "회사 발표·목표",
+        "cues": [
+          "발표",
+          "목표",
+          "출시 예정",
+          "공개"
+        ]
+      },
+      {
+        "name": "일정",
+        "description": "일정·지연",
+        "cues": [
+          "연기",
+          "지연",
+          "출시",
+          "분기"
+        ]
+      },
+      {
+        "name": "경쟁",
+        "description": "경쟁 구도",
+        "cues": [
+          "경쟁사",
+          "추격",
+          "점유율"
+        ]
+      }
+    ],
+    "diet_order": [
+      "Unclassified",
+      "경쟁",
+      "일정",
+      "발표",
+      "검증"
+    ],
+    "never_remove": [
+      "Constraint_Guardrail"
+    ]
+  }
+}

@@ -1,0 +1,99 @@
+{
+  "name": "litigation",
+  "profile_version": 1,
+  "label": "소송",
+  "description": "인과 35 + legal 묶음. 감량 순서는 초안(DESIGN O1 대표 결정 대기)",
+  "packs": [
+    "legal"
+  ],
+  "knobs": {
+    "similarity": "High",
+    "edge_weight": "High"
+  },
+  "external_allowed": false,
+  "ontology": {
+    "classes": [
+      {
+        "name": "Constraint_Guardrail",
+        "description": "한계·조건·위험. 절대 빼지 않음",
+        "cues": [
+          "확인되지 않았다",
+          "에서만",
+          "경우에만",
+          "단정할 수 없",
+          "제외",
+          "한계",
+          "위험",
+          "하지 않는다"
+        ]
+      },
+      {
+        "name": "증거",
+        "description": "입증·기록",
+        "cues": [
+          "입증",
+          "증거",
+          "기록",
+          "증명",
+          "소명"
+        ]
+      },
+      {
+        "name": "반론",
+        "description": "상대 주장·항변",
+        "cues": [
+          "주장하나",
+          "항변",
+          "반박",
+          "다투"
+        ]
+      },
+      {
+        "name": "법리",
+        "description": "요건·의무·책임",
+        "cues": [
+          "요건",
+          "의무",
+          "책임",
+          "과실",
+          "예견"
+        ]
+      },
+      {
+        "name": "손해",
+        "description": "손해 발생·액수",
+        "cues": [
+          "손해",
+          "배상",
+          "손실",
+          "피해액"
+        ]
+      },
+      {
+        "name": "사실",
+        "description": "시간순 사실관계",
+        "cues": [
+          "통보",
+          "요구",
+          "발생",
+          "체결"
+        ],
+        "patterns": [
+          "\\d{1,2}\\s*월\\s*\\d{1,2}\\s*일"
+        ]
+      }
+    ],
+    "diet_order": [
+      "Unclassified",
+      "사실",
+      "손해",
+      "법리",
+      "반론",
+      "증거"
+    ],
+    "never_remove": [
+      "Constraint_Guardrail",
+      "증거"
+    ]
+  }
+}

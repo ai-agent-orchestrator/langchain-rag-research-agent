@@ -105,5 +105,5 @@ def test_board_runs_filters_on_golden_sets(tmp_path):
     rows = fb.run_board(sorted((root / "data/golden_sets").glob("*.json")), ["research", "litigation"], False, 300, None)
     assert {r["config"] for r in rows} == {"research", "litigation"}
     assert all(0.0 <= r["keep_hit"] <= 1.0 for r in rows)
-    assert fb.main(["--filters", "research", "--runs", str(tmp_path)]) == 0
+    assert fb.main(["--profiles", "litigation", "--runs", str(tmp_path)]) == 0
     assert (tmp_path / "board.html").read_text(encoding="utf-8").startswith("<!doctype html>")

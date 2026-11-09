@@ -1,0 +1,75 @@
+{
+  "name": "defense",
+  "profile_version": 1,
+  "label": "방위산업(전략·정책)",
+  "description": "예산·조달·배치·정책 등 전략 수준만",
+  "packs": [
+    "defense",
+    "geopolitics"
+  ],
+  "knobs": {
+    "similarity": "Mid",
+    "edge_weight": "High"
+  },
+  "ontology": {
+    "classes": [
+      {
+        "name": "Constraint_Guardrail",
+        "description": "한계·조건·위험. 절대 빼지 않음",
+        "cues": [
+          "확인되지 않았다",
+          "에서만",
+          "경우에만",
+          "단정할 수 없",
+          "제외",
+          "한계",
+          "위험",
+          "하지 않는다"
+        ]
+      },
+      {
+        "name": "예산_조달",
+        "cues": [
+          "예산",
+          "국방비",
+          "조달",
+          "수주",
+          "계약"
+        ]
+      },
+      {
+        "name": "정책",
+        "cues": [
+          "전략",
+          "정책",
+          "교리"
+        ]
+      },
+      {
+        "name": "동맹",
+        "cues": [
+          "동맹",
+          "안보 협력",
+          "합동"
+        ]
+      },
+      {
+        "name": "배치",
+        "cues": [
+          "배치",
+          "태세"
+        ]
+      }
+    ],
+    "diet_order": [
+      "Unclassified",
+      "배치",
+      "동맹",
+      "정책",
+      "예산_조달"
+    ],
+    "never_remove": [
+      "Constraint_Guardrail"
+    ]
+  }
+}

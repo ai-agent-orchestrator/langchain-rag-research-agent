@@ -1,0 +1,85 @@
+{
+  "name": "macro",
+  "profile_version": 1,
+  "label": "매크로",
+  "description": "지표 수치와 그 조건(%p, 계절조정, 속보치) 보존",
+  "packs": [
+    "macro"
+  ],
+  "knobs": {
+    "similarity": "Mid",
+    "edge_weight": "High"
+  },
+  "ontology": {
+    "classes": [
+      {
+        "name": "Constraint_Guardrail",
+        "description": "한계·조건·위험. 절대 빼지 않음",
+        "cues": [
+          "확인되지 않았다",
+          "에서만",
+          "경우에만",
+          "단정할 수 없",
+          "제외",
+          "한계",
+          "위험",
+          "하지 않는다"
+        ]
+      },
+      {
+        "name": "지표",
+        "description": "수치 지표",
+        "cues": [
+          "성장률",
+          "물가",
+          "실업률",
+          "금리",
+          "수출",
+          "환율"
+        ],
+        "patterns": [
+          "\\d+(?:\\.\\d+)?\\s*%"
+        ]
+      },
+      {
+        "name": "원인",
+        "description": "지표 변화의 원인",
+        "cues": [
+          "때문",
+          "원인",
+          "으로 인해",
+          "주도"
+        ]
+      },
+      {
+        "name": "정책",
+        "description": "정책·결정",
+        "cues": [
+          "기준금리",
+          "정부",
+          "정책",
+          "부양"
+        ]
+      },
+      {
+        "name": "전망",
+        "description": "전망·예상",
+        "cues": [
+          "전망",
+          "예상",
+          "컨센서스"
+        ]
+      }
+    ],
+    "diet_order": [
+      "Unclassified",
+      "전망",
+      "정책",
+      "원인",
+      "지표"
+    ],
+    "never_remove": [
+      "Constraint_Guardrail"
+    ]
+  }
+}
