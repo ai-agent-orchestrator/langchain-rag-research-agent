@@ -2,9 +2,9 @@
 
 **A reusable search and brief-building module: hybrid retrieval, an edge-preserving "equalizer", and a LangGraph pipeline that keeps an author's original ideas intact when a long draft is shrunk for a small local model.**
 
-[한국어 README](README.ko.md) · [Design review](docs/DESIGN_REVIEW.ko.md) · [Study guide (dark PDF)](docs/EQUALIZER_STUDY_DARK.pdf)
+[한국어 README](README.ko.md) · [Design (ko)](docs/DESIGN.ko.md) · [Design review](docs/DESIGN_REVIEW.ko.md) · [Study guide (dark PDF)](docs/EQUALIZER_STUDY_DARK.pdf)
 
-> **Status: design v1.0 in review.** The repository is being renamed from `python-memvid-guardrail`; its former hybrid (Spring Boot + FastAPI + memvid) content is preserved in [`docs/legacy/`](docs/legacy) and is moving to [spring-fastapi-async-refactor](https://github.com/ai-agent-orchestrator/spring-fastapi-async-refactor).
+> **Status: design v1.0 confirmed (decisions D1–D7 settled, 2026-11-09); implementation not started.** The authoritative design is [docs/DESIGN.ko.md](docs/DESIGN.ko.md) (Korean). Design principle P0: every feature is built as a separable module. The repository is being renamed from `python-memvid-guardrail`; its former hybrid (Spring Boot + FastAPI + memvid) content is preserved in [`docs/legacy/`](docs/legacy) and is moving to [spring-fastapi-async-refactor](https://github.com/ai-agent-orchestrator/spring-fastapi-async-refactor).
 > What exists today: an E5 + memvid retrieval evaluation (measured on synthetic data), a package skeleton, and a long-prompt brief prototype (fake embedder). **The Edge Equalizer itself is a design, not yet an implementation, and no real Llama or Qwen summarization quality has been measured.** Every number below is labelled *measured*, *prototype* or *example*.
 
 ![Architecture overview](docs/diagrams/01-architecture-overview.en.png)
