@@ -8,7 +8,7 @@
 
 ## 0. 저장소 역할
 
-| | ① legal-intake-fastapi-lab | ③ python-memvid-guardrail |
+| | ① legal-intake-fastapi-lab | ③ langchain-rag-research-agent (구 python-memvid-guardrail) |
 | --- | --- | --- |
 | 목적 | 상담 안내 API 하나에서 보안·검색·생성·마케팅을 **최소 범위로 검증** | ①의 구현·계약·시험을 **정리** + **확장 실험** + **재사용 모듈** |
 | LangChain·LangGraph·LangSmith·RAG | 필수 범위의 기본 사용(3 node, 합성 평가) | 같은 부품을 모듈로 묶고 하이브리드·리랭킹·질의 재작성·의미 기반 가드·긴 프롬프트 브리프까지 실험 |
@@ -20,7 +20,7 @@ README 저장소 순서 문구(반영안):
 | 순서 | 역할 |
 | --- | --- |
 | ① legal-intake-fastapi-lab | FastAPI 단독에서 보안·검색·생성·마케팅 기능을 최소 범위로 검증 |
-| ③ python-memvid-guardrail | ①에서 검증한 구현·계약·시험을 정리하고, LangChain·LangSmith·보안·RAG·유사도 검색을 더 넓게 실험해 법률 검색·리서치에서 쓰는 재사용 백엔드 모듈로 개발 |
+| ③ langchain-rag-research-agent (구 python-memvid-guardrail) | ①에서 검증한 구현·계약·시험을 정리하고, LangChain·LangSmith·보안·RAG·유사도 검색을 더 넓게 실험해 법률 검색·리서치에서 쓰는 재사용 백엔드 모듈로 개발 |
 | ② spring-fastapi-async-refactor | Spring 인증·인가와 FastAPI AI 서비스 연결 |
 | 이후 | 검증한 기능을 기반으로 별도 비공개 상업화 개발 |
 
