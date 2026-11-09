@@ -7,11 +7,11 @@ from dataclasses import dataclass
 import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
-from memvid_guardrail.rag.answer import (NO_EVIDENCE_ANSWER, DraftRejected, EvidenceStatus, GuidanceDraft,
+from rag_research_agent.rag.answer import (NO_EVIDENCE_ANSWER, DraftRejected, EvidenceStatus, GuidanceDraft,
                             assemble_answer, no_evidence_answer, validate_citations)
-from memvid_guardrail.rag.chain import PROMPT, build_chain, format_evidence, parse_draft
-from memvid_guardrail.rag.graph import build_graph
-from memvid_guardrail.observe.tracing import REDACTED, allowlist, serving_config, serving_trace_guard
+from rag_research_agent.rag.chain import PROMPT, build_chain, format_evidence, parse_draft
+from rag_research_agent.rag.graph import build_graph
+from rag_research_agent.observe.tracing import REDACTED, allowlist, serving_config, serving_trace_guard
 
 pytestmark = pytest.mark.lc
 

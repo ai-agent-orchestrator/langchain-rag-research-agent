@@ -17,7 +17,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable, RunnableLambda
 from pydantic import ValidationError
 
-from memvid_guardrail.rag.answer import DraftRejected, EvidenceLike, GuidanceDraft
+from rag_research_agent.rag.answer import DraftRejected, EvidenceLike, GuidanceDraft
 
 PROMPT_VERSION = "guidance-prompt-v1"
 

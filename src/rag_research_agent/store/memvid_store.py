@@ -20,8 +20,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
-from memvid_guardrail.core.contracts import Chunk, IndexManifest, RetrievalUnavailable
-from memvid_guardrail.retrieve.keyword import lex_terms
+from rag_research_agent.core.contracts import Chunk, IndexManifest, RetrievalUnavailable
+from rag_research_agent.retrieve.keyword import lex_terms
 
 POINTER = "active.json"
 PUT_BATCH = 8

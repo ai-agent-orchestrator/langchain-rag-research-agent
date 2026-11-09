@@ -15,7 +15,7 @@ from typing import Any, Awaitable, Callable, Literal, Optional, Protocol, Sequen
 
 from langgraph.graph import END, START, StateGraph
 
-from memvid_guardrail.rag.answer import EvidenceStatus, GuidanceDraft
+from rag_research_agent.rag.answer import EvidenceStatus, GuidanceDraft
 
 
 class RetrievalOutcome(Protocol):

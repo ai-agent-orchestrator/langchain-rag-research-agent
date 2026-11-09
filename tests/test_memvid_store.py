@@ -9,12 +9,12 @@ import socket
 
 import pytest
 
-from memvid_guardrail.ingest.chunking import build_chunks, load_guides
-from memvid_guardrail.embed.providers import FakeEmbedder
-from memvid_guardrail.retrieve.gate import RelevanceRule, to_result
-from memvid_guardrail.retrieve.keyword import lex_terms
-from memvid_guardrail.store.memvid_store import load_memvid, open_active, publish_index
-from memvid_guardrail.core.contracts import Chunk, RetrievalMode, RetrievalStatus, RetrievalUnavailable
+from rag_research_agent.ingest.chunking import build_chunks, load_guides
+from rag_research_agent.embed.providers import FakeEmbedder
+from rag_research_agent.retrieve.gate import RelevanceRule, to_result
+from rag_research_agent.retrieve.keyword import lex_terms
+from rag_research_agent.store.memvid_store import load_memvid, open_active, publish_index
+from rag_research_agent.core.contracts import Chunk, RetrievalMode, RetrievalStatus, RetrievalUnavailable
 
 pytestmark = pytest.mark.memvid
 EMB = FakeEmbedder()
