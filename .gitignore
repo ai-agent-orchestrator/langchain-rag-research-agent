@@ -10,6 +10,9 @@ data/*
 !data/articles.json
 !data/golden_no_evidence.json
 !data/README.md
+!data/golden_rules/
+!data/equalizer/
+!data/golden_sets/
 *.mv2
 *.mv2.*
 *.npy
