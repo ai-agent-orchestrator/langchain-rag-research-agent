@@ -18,6 +18,7 @@ from typing import Sequence
 
 from rag_research_agent.core.contracts import Chunk, RetrievalUnavailable
 from rag_research_agent.embed.providers import FakeEmbedder
+from rag_research_agent.embed.registry import create_embedder, DEFAULT_MODELS
 from rag_research_agent.ingest.paragraphs import paragraph_chunks
 from rag_research_agent.store.chroma_store import ChromaIndex, publish_chroma, load_chroma
 
@@ -29,10 +30,11 @@ def _embedder_id(e) -> str:
 
 
 class Library:
-    def __init__(self, path: str | Path = ".runs/library", collection: str = "rra_library", embedder=None):
+    def __init__(self, path: str | Path = ".runs/library", collection: str = "rra_library", embedder=None,
+                 models_file=DEFAULT_MODELS, device="cpu"):
         self.path = Path(path)
         self.collection = collection
-        self.embedder = embedder or FakeEmbedder(dimension=256)
+        self.embedder = create_embedder(embedder, models_file=models_file, device=device) if isinstance(embedder, str) else (embedder or FakeEmbedder(dimension=256))
         self.chunks: list[Chunk] = []
         self.index: ChromaIndex | None = None
         self._documents = {}

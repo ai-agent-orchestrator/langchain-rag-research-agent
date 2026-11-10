@@ -50,6 +50,17 @@ class Parts:
     checker: object = field(default_factory=NumberIdOutputChecker)
 
     @classmethod
+    def with_guard(cls, **overrides):
+        """Opt into the installed canonical guard; keep legacy fake only when unavailable."""
+        if "input_policy" not in overrides:
+            from rag_research_agent.guard.intake_guard_adapter import IntakeInputPolicy, IntakeGuardUnavailable
+            try:
+                overrides["input_policy"] = IntakeInputPolicy()
+            except IntakeGuardUnavailable:
+                overrides["input_policy"] = FakeInputPolicy()
+        return cls(**overrides)
+
+    @classmethod
     def with_defaults_v1(cls, **overrides):
         """Opt into adjacent causal pairs; legacy construction keeps FakeLinkBuilder."""
         overrides.setdefault("link_builder", RuleLinkBuilder())
@@ -72,61 +83,10 @@ class BriefTrace:
 def build_brief(draft: str, task: str | None = None, knobs: Knobs | None = None, preset: str | None = None,
                 budget: int = 600, focus: dict[str, float] | None = None, packs: Sequence[str] | None = None,
                 parts: Parts | None = None) -> tuple[Brief, BriefTrace]:
-    p = (parts or Parts()).ready()
-    cfg = p.config
-    pre = cfg.presets.get(preset) if preset else None
-    if preset and pre is None:
-        raise ValueError(f"unknown preset {preset}; available: {sorted(cfg.presets)}")
-    knobs = knobs or (pre.knobs if pre else Knobs())
-    packs = tuple(packs if packs is not None else (pre.packs if pre else ()))
-    if focus is None and pre and pre.focus:
-        focus = dict(pre.focus)
-    st = cfg.mapper.map(knobs)
-    settings = {"preset": preset, "similarity": knobs.similarity, "edge_weight": knobs.edge_weight,
-                "threshold": st.threshold, "top_k": st.top_k, "extract_only": st.extract_only,
-                "protected_path": st.protected_path, "budget": budget, "packs": list(packs), "focus": focus or {}}
-    versions = {"rule_version": p.rules.rule_version, "equalizer": "v0", "mapper": repr(cfg.mapper)}
-
-    decision = p.input_policy.check(draft + "\n" + (task or ""))
-    if not decision.allowed:                                   # zero generation calls on a block
-        b = Brief("", Status.BLOCKED, versions=versions)
-        return b, BriefTrace(settings, [], [f"blocked: {decision.reason}"], Status.BLOCKED)
-
-    labeler = p.labeler.with_text(draft) if hasattr(p.labeler, "with_text") else p.labeler
-    segs: list[Segment] = labeler.label(p.chunker.split(draft, "draft"))
-    link_builder = p.link_builder.with_text(draft) if hasattr(p.link_builder, "with_text") else p.link_builder
-    links = link_builder.build(segs)
-    rel_of = p.relevance(task)
-    scorer = p.scorer_factory(p.rules, draft, packs, focus=focus)
-    edge = {e.segment_id: e for e in scorer.score(segs)}
-    rel = {s.segment_id: rel_of(draft[s.start:s.end]) for s in segs}
-    final = {s.segment_id: blend(rel[s.segment_id], edge[s.segment_id].total, st.edge_weight) for s in segs}
-
-    ordinary = [s for s in segs if rel[s.segment_id] >= st.threshold]
-    ordinary = sorted(ordinary, key=lambda s: (-final[s.segment_id], s.start))[: st.top_k]
-    protected_ids: set[str] = set()
-    if st.protected_path:
-        protected_ids = {c.segment_id for c in RuleProtectedPicker(scorer).pick(segs, list(edge.values()))}
-        protected_ids |= {s.segment_id for s in segs if getattr(s.ontology_label, 'value', s.ontology_label) in cfg.never_remove}
-    chosen_ids = {s.segment_id for s in ordinary} | protected_ids
-    chosen = [s for s in segs if s.segment_id in chosen_ids]
-    excluded = [(s.segment_id, "below_threshold" if rel[s.segment_id] < st.threshold else "outside_top_k")
-                for s in segs if s.segment_id not in chosen_ids]
-
-    rows = [{"id": s.segment_id, "label": getattr(s.ontology_label, "value", s.ontology_label), "relevance": rel[s.segment_id], "edge": edge[s.segment_id].total,
-             "final": final[s.segment_id], "protected": s.segment_id in protected_ids,
-             "chosen": s.segment_id in chosen_ids, "text": draft[s.start:s.end]} for s in segs]
-    if not chosen:                                             # no evidence: zero generation calls
-        b = Brief("", Status.REQUEST_MORE, excluded=tuple(excluded), versions=versions)
-        return b, BriefTrace(settings, rows, ["no candidates"], Status.REQUEST_MORE)
-
-    dieter = p.dieter_factory(budget, cfg.class_order, cfg.never_remove)
-    diet = dieter.run(chosen, draft, final, protected_ids, links)
-    excluded += diet.removed
-    for r in rows:
-        r["kept"] = any(k.segment_id == r["id"] for k in diet.kept)
-    brief = p.composer.compose(diet.kept, draft, versions, excluded, diet.log, diet.status)
-    status = p.checker.check(brief, draft)
-    if status is not brief.status:
-        brief = Brief("", status, brief.included_ids, brief.excluded, brief.diet_log, brief.versions)
-    return brief, BriefTrace(settings, rows, diet.log, status)
+    from rag_research_agent.rag.stages import prepare, STAGES
+    state = prepare(parts or Parts(), draft, task, knobs, preset, budget, focus, packs)
+    for stage in STAGES:
+        state = stage(state, state["parts"])
+        if state.get("_finished"):
+            break
+    return state["brief"], BriefTrace(state["settings"], state["rows"], state["diet_log"], state["status"])

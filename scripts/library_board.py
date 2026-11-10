@@ -71,6 +71,8 @@ def render(lib: Library, query: str | None, profile: str | None, budget: int, k:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--path", default=str(ROOT / ".runs/library"))
+    ap.add_argument("--embedder", choices=["fake", "e5", "bge-m3"], default="fake")
+    ap.add_argument("--device", default="cpu")
     ap.add_argument("--add", help="folder with .txt/.md files; incrementally updates the library")
     ap.add_argument("--rebuild", action="store_true", help="rebuild all documents from --add folder")
     ap.add_argument("--query")
@@ -79,7 +81,7 @@ def main(argv=None) -> int:
     ap.add_argument("-k", type=int, default=8)
     ap.add_argument("--out", default=str(ROOT / ".runs/library_board.html"))
     a = ap.parse_args(argv)
-    lib = Library(a.path)
+    lib = Library(a.path, embedder=a.embedder, device=a.device)
     if a.add:
         docs = load_folder(a.add)
         if a.rebuild:
