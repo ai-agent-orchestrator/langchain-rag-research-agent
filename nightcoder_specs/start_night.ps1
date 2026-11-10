@@ -45,7 +45,8 @@ $Order = @("rra-p1-cli-inputs","rra-p3-lint","rra-p2-graph",
   "codex/rra-c1-causal-links","codex/rra-c2-golden-maker","codex/rra-c3-sentence-split","codex/rra-c4-embedding-relevance",
   "codex/rra-c5-store-stability","codex/rra-c6-library-incremental","codex/rra-c7-number-table","codex/rra-c8-wire-links-relevance",
   "codex/rra-c9-board-diff","codex/rra-c10-prediction-log","codex/rra-c11-cue-suggester","codex/rra-c12-real-embedders",
-  "codex/rra-c13-embedder-compare","codex/rra-c14-kiwi-lab","codex/rra-c16-guard-adapter-research","codex/rra-c17-golden-v2-tooling")
+  "codex/rra-c13-embedder-compare","codex/rra-c14-kiwi-lab","codex/rra-c16-guard-adapter-research","codex/rra-c17-golden-v2-tooling",
+  "codex/rra-p2b-graph-stages")
 # c15 runs in the legal-intake repo, never in this lane
 
 Step 1 "lane folder and branch"
