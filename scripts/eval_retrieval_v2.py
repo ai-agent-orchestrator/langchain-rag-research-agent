@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
+from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -14,6 +15,7 @@ from rag_research_agent.observe.evaluate import calibrate
 from rag_research_agent.rag.library import Library
 from rag_research_agent.rag.profile import Equalizer
 from rag_research_agent.observe.experiments import QueryInstruction, instruction_option, score_summary, metric_table
+from rag_research_agent.rag.learning import chunk_diagnostics
 
 
 def _input_policy():
@@ -25,16 +27,28 @@ def _input_policy():
 
 
 def evaluate(set_path, embedder="fake", split=None, k=3, e2e=False, profile="research", out=".runs/eval_v2",
-             library_factory=Library, embedder_factory=create_embedder, policy="auto", corpus=None, instruction="default"):
+             library_factory=Library, embedder_factory=create_embedder, policy="auto", corpus=None, instruction="default", chunk_size=None, overlap=0):
     instruction_option(instruction)
     dataset = load(set_path, corpus)
     policy = _input_policy() if policy == "auto" else policy
     if policy is not None and type(policy).__name__ == "FakeInputPolicy":
         policy = None
     emb = QueryInstruction(embedder_factory(embedder), instruction)
-    with TemporaryDirectory(prefix="rra-golden-v2-") as temp:
+    docs = [(a["id"], a["title"], a["text"]) for a in dataset["corpus"]]
+    diagnostics = chunk_diagnostics(docs, emb, chunk_size, overlap, dataset["items"])
+    if diagnostics["over_limit_chunks"]:
+        result = {"status": "토큰 한도 초과: 평가 안 함", "chunking": diagnostics,
+                  "overall": {}, "evaluation": {"path_test": None, "real_model": None}}
+        target = Path(out)
+        target.mkdir(parents=True, exist_ok=True)
+        (target / "report.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+        (target / "report.md").write_text(result["status"] + "\n" + json.dumps(diagnostics, ensure_ascii=False), encoding="utf-8")
+        return result
+    index_root = Path(out) / "indexes"
+    index_root.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix="run-", dir=index_root) as temp:
         lib = library_factory(Path(temp) / "index", embedder=emb)
-        lib.build([(a["id"], a["title"], a["text"]) for a in dataset["corpus"]])
+        lib.build(docs, **({"chunk_size": chunk_size, "overlap": overlap} if chunk_size is not None else {}))
         rankings, statuses, calibration_rows = {}, {}, []
         try:
             for item in dataset["items"]:
@@ -75,6 +89,7 @@ def evaluate(set_path, embedder="fake", split=None, k=3, e2e=False, profile="res
             result = {**report(rows), "name": dataset["name"], "model_id": emb.model_id, "revision": emb.revision,
                       "k": k, "e2e": e2e, "calibration": rule,
                       "instruction": instruction, "evaluation_rows": evaluation_rows,
+                      "chunking": diagnostics,
                       "evaluation": score_summary(evaluation_rows, embedder == "fake"),
                       "calibrated_on": [i["id"] for i in dataset["items"] if i["split"] == "compare" and i["type"] != "injection"]}
         finally:
@@ -88,6 +103,7 @@ def evaluate(set_path, embedder="fake", split=None, k=3, e2e=False, profile="res
         lines.append("| " + name + " | " + str(group["count"]) + " | " + " | ".join(str(group[m]) for m in METRICS) + " |")
     text = "\n".join(lines)
     text += "\n\n" + "\n".join(metric_table(result["evaluation"]))
+    text += "\n\n청크 진단: " + json.dumps(diagnostics, ensure_ascii=False)
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     (out / "report.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -106,8 +122,10 @@ def main(argv=None):
     ap.add_argument("--profile", default="research")
     ap.add_argument("--out", default=".runs/eval_v2")
     ap.add_argument("--instruction", default="default", type=instruction_option, metavar="{none,default,custom:<text>}")
+    ap.add_argument("--chunk-size", type=int)
+    ap.add_argument("--overlap", type=int, default=0)
     args = ap.parse_args(argv)
-    result = evaluate(args.set, args.embedder, args.split, args.k, args.e2e, args.profile, args.out, instruction=args.instruction)
+    result = evaluate(args.set, args.embedder, args.split, args.k, args.e2e, args.profile, args.out, instruction=args.instruction, chunk_size=args.chunk_size, overlap=args.overlap)
     print(result["overall"])
     return 0
 

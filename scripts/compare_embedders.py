@@ -4,6 +4,7 @@ import html
 import json
 from pathlib import Path
 import sys
+from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -15,10 +16,11 @@ from rag_research_agent.observe.calibration import summarize_calibration
 from rag_research_agent.observe.evaluate import two_axis_report
 from rag_research_agent.rag.library import Library
 from rag_research_agent.observe.experiments import QueryInstruction, instruction_option, score_summary, metric_table
+from rag_research_agent.rag.learning import chunk_diagnostics
 
 
 def compare_models(models, set_path, no_evidence_path, corpus_path=ROOT / "data/articles.json", out=".runs",
-                   embedder_factory=create_embedder, library_factory=Library, instruction="default"):
+                   embedder_factory=create_embedder, library_factory=Library, instruction="default", chunk_size=None, overlap=0):
     instruction_option(instruction)
     out = Path(out)
     articles = json.loads(Path(corpus_path).read_text(encoding="utf-8"))
@@ -33,8 +35,13 @@ def compare_models(models, set_path, no_evidence_path, corpus_path=ROOT / "data/
             results.append({"model": name, "status": "미준비", "reason": str(exc)})
             continue
         try:
-            lib = library_factory(out / "compare" / name, embedder=embedder)
-            lib.build([(a["id"], a["title"], a["text"]) for a in articles])
+            docs = [(a["id"], a["title"], a["text"]) for a in articles]
+            diagnostics = chunk_diagnostics(docs, embedder, chunk_size, overlap)
+            if diagnostics["over_limit_chunks"]:
+                results.append({"model": name, "status": "토큰 한도 초과: 평가 안 함", "chunking": diagnostics})
+                continue
+            lib = library_factory(out / "compare" / name / uuid4().hex, embedder=embedder)
+            lib.build(docs, **({"chunk_size": chunk_size, "overlap": overlap} if chunk_size is not None else {}))
         except RetrievalUnavailable as exc:
             results.append({"model": name, "status": "저장소 미준비", "reason": str(exc)})
             continue
@@ -62,6 +69,7 @@ def compare_models(models, set_path, no_evidence_path, corpus_path=ROOT / "data/
             record = {"model": name, "model_id": embedder.model_id, "revision": embedder.revision,
                       "status": "ready", **calibration,
                       "instruction": instruction, "evaluation": score_summary(compare_rows, name == "fake"), "evaluation_rows": rows,
+                      "chunking": diagnostics,
                       "calibrated_on": [r["id"] for r in compare_rows],
                       "confirm": two_axis_report([r for r in rows if r["split"] == "confirm"], "vector", calibration["rule"]) if calibration["rule"] else None}
             directory = out / "calibration"
@@ -78,6 +86,8 @@ def compare_models(models, set_path, no_evidence_path, corpus_path=ROOT / "data/
                      result.get("tau_high", "-"), result.get("hit_at_1", "-"), result.get("hit_at_3", "-"), result.get("mrr", "-"))) + " |")
         if "evaluation" in result:
             report.extend(["", f"{result['model']}: instruction={instruction}", *metric_table(result["evaluation"]), ""])
+        if "chunking" in result:
+            report.extend(["", "청크 진단: " + json.dumps(result["chunking"], ensure_ascii=False), ""])
     directory = out / "compare"
     directory.mkdir(parents=True, exist_ok=True)
     text = "\n".join(report)
@@ -94,8 +104,10 @@ def main(argv=None):
     ap.add_argument("--corpus", default=str(ROOT / "data/articles.json"))
     ap.add_argument("--out", default=".runs")
     ap.add_argument("--instruction", default="default", type=instruction_option, metavar="{none,default,custom:<text>}")
+    ap.add_argument("--chunk-size", type=int)
+    ap.add_argument("--overlap", type=int, default=0)
     args = ap.parse_args(argv)
-    result = compare_models(args.models, args.set, args.no_evidence, args.corpus, args.out, instruction=args.instruction)
+    result = compare_models(args.models, args.set, args.no_evidence, args.corpus, args.out, instruction=args.instruction, chunk_size=args.chunk_size, overlap=args.overlap)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
