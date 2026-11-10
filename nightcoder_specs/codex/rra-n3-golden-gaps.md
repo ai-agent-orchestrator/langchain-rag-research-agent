@@ -2,7 +2,7 @@ files: src/rag_research_agent/observe/golden_gaps.py, scripts/golden_gaps.py, te
 forbid: src/rag_research_agent/observe/tracing.py, data/**, profiles/**, .env*
 effort: low
 coder: codex
-status: ready
+status: done
 order: 30
 repo: research
 
