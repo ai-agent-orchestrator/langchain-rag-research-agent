@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Golden rules (draft; ID uniqueness and regex compilation in rra check)",
+  "type": "object",
+  "required": ["causal_types", "weights"],
+  "properties": {
+    "weights": {"type": "object", "required": ["golden_phrase", "concreteness", "causal_reversal", "ontology_priority", "rarity", "cliche_penalty"], "additionalProperties": {"type": "number", "minimum": 0}},
+    "number_patterns": {"type": "array", "items": {"type": "string", "format": "regex"}},
+    "causal_types": {"type": "array", "items": {"allOf": [{"$ref": "#/$defs/rule"}, {"required": ["name"]}]}},
+    "pillar_rules": {"type": "array", "items": {"$ref": "#/$defs/rule"}},
+    "cliche_rules": {"type": "array", "items": {"$ref": "#/$defs/rule"}},
+    "weight_rules": {"type": "array", "items": {"$ref": "#/$defs/rule"}},
+    "packs": {"type": "object", "additionalProperties": {"oneOf": [{"type": "object", "properties": {"rules": {"type": "array", "items": {"$ref": "#/$defs/rule"}}}}, {"type": "array", "items": {"type": "string"}}]}}
+  },
+  "$defs": {"rule": {"type": "object", "required": ["id"], "properties": {
+    "id": {"type": ["string", "integer"]},
+    "name": {"type": "string"},
+    "cues": {"type": "array", "items": {"type": "string"}},
+    "patterns": {"type": "array", "items": {"type": "string", "format": "regex"}},
+    "weight": {"type": "number", "exclusiveMinimum": 0}
+  }}}
+}

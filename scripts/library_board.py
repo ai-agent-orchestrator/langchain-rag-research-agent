@@ -17,6 +17,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from rag_research_agent.rag.library import Library, load_folder  # noqa: E402
+from rag_research_agent.compose.numbers import extract_numbers, to_markdown
+from rag_research_agent.core.types import Segment
 
 CSS = """:root{--bg:#0e141b;--card:#131c27;--line:#24324a;--text:#e6edf6;--muted:#9aabbd;--cyan:#78d5ef}
 body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 "Noto Sans KR","Malgun Gothic",sans-serif;padding:16px}
@@ -34,13 +36,14 @@ def esc(x) -> str:
 
 def render(lib: Library, query: str | None, profile: str | None, budget: int, k: int) -> str:
     per_doc = Counter(c.document_id for c in lib.chunks)
-    docs = "".join(f"<tr><td>{esc(d)}</td><td class='n'>{n}</td><td>{esc(next(c.title for c in lib.chunks if c.document_id == d))}</td></tr>"
-                   for d, n in per_doc.items())
+    docs = "".join(f"<tr><td>{esc(d['doc_id'])}</td><td>{d['chunks']}</td><td>{esc(d['title'])}</td>"
+                   f"<td>{esc(d['hash'] or 'legacy')}</td><td>{esc(d['added_at'] or '-')}</td></tr>"
+                   for d in lib.documents())
     samples = "".join(f"<tr><td class='n'>{esc(c.chunk_id)}</td><td>{esc(c.safe_text[:160])}{'…' if len(c.safe_text) > 160 else ''}</td></tr>"
                       for c in lib.chunks[:12])
     parts = [f"<section><div class='eyebrow'>STORE</div><h2>{esc(lib.collection)} · 조각 {len(lib.chunks)}개 · 문서 {len(per_doc)}개</h2>"
              f"<p>저장소 Chroma · 임베더 {esc(type(lib.embedder).__name__)} (가짜 임베더 결과는 키워드 유사도에 가깝습니다)</p>"
-             f"<div class='scroll'><table><tr><th>문서</th><th>조각</th><th>제목</th></tr>{docs}</table></div></section>",
+             f"<div class='scroll'><table><tr><th>문서</th><th>조각</th><th>제목</th><th>해시</th><th>추가 시각</th></tr>{docs}</table></div></section>",
              f"<section><div class='eyebrow'>SAMPLES</div><h2>저장된 조각 (처음 12개)</h2><div class='scroll'><table>"
              f"<tr><th>ID</th><th>본문</th></tr>{samples}</table></div></section>"]
     if query:
@@ -56,6 +59,9 @@ def render(lib: Library, query: str | None, profile: str | None, budget: int, k:
             parts.append(f"<section><div class='eyebrow'>EQUALIZER · {esc(profile)}</div><h2>브리프 ({esc(brief.status.value)} · 남긴 문장 {kept}/{len(trace.rows)})</h2>"
                          f"<pre>{esc(brief.final_prompt_input or '(없음)')}</pre>"
                          f"<p class='muted'>감량 기록: {esc('; '.join(trace.diet_log) or '-')}</p></section>")
+            numbers = [number for row in trace.rows if row.get("kept")
+                       for number in extract_numbers([Segment(row["id"], "draft", 0, len(row["text"]))], row["text"])]
+            parts.append(f"<section><h2>수치 추출표</h2><div class='scroll'><pre>{esc(to_markdown(numbers))}</pre></div></section>")
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     return (f"<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
             f"<title>Library Board</title><style>{CSS}</style></head><body><header><div class='eyebrow'>RESEARCH LIBRARY</div>"
@@ -65,7 +71,8 @@ def render(lib: Library, query: str | None, profile: str | None, budget: int, k:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--path", default=str(ROOT / ".runs/library"))
-    ap.add_argument("--add", help="folder with .txt/.md files; rebuilds the library")
+    ap.add_argument("--add", help="folder with .txt/.md files; incrementally updates the library")
+    ap.add_argument("--rebuild", action="store_true", help="rebuild all documents from --add folder")
     ap.add_argument("--query")
     ap.add_argument("--profile")
     ap.add_argument("--budget", type=int, default=800)
@@ -75,8 +82,11 @@ def main(argv=None) -> int:
     lib = Library(a.path)
     if a.add:
         docs = load_folder(a.add)
-        lib.build(docs)
-        print(f"built: {len(lib.chunks)} chunks from {len(docs)} documents")
+        if a.rebuild:
+            lib.build(docs)
+            print(f"rebuilt: {len(lib.chunks)} chunks from {len(docs)} documents")
+        else:
+            print(lib.add(docs))
     else:
         lib.open()
     out = Path(a.out)
