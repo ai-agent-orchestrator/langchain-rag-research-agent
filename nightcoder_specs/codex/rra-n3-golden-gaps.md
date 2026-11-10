@@ -2,6 +2,9 @@ files: src/rag_research_agent/observe/golden_gaps.py, scripts/golden_gaps.py, te
 forbid: src/rag_research_agent/observe/tracing.py, data/**, profiles/**, .env*
 effort: low
 coder: codex
+status: ready
+order: 30
+repo: research
 
 # N3: 골든셋 v2 빈틈 진단과 작성용 빈 양식 (데이터는 건드리지 않는다)
 

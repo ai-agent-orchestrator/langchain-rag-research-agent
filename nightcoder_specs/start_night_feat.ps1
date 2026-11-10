@@ -1,7 +1,11 @@
 <#
-  start_night_feat.ps1 - copy of start_night.ps1 (v2) that builds the lane on top of a feature branch
-  (default feat/day-2026-11-10) instead of origin/main, and queues only the N-series practice specs.
-  Reason: this work is not merged to main, so a lane on origin/main would not contain the latest code.
+  start_night_feat.ps1 - start_night.ps1 (v2) adapted so nothing needs editing day to day:
+    * base branch = the branch currently checked out in the repo this script lives in (-BaseBranch auto);
+      it must be pushed (local HEAD == origin/<branch>), otherwise the script stops and says "git push".
+    * queue = every spec under nightcoder_specs\ whose header has "status: ready", sorted by "order: <n>"
+      (then file name). Specs with "repo: <other>" are skipped. Specs whose _REPORT_ file already exists on
+      the base branch are skipped as done. Add a spec = drop a file with "status: ready"; no script edit.
+    * test gate excludes memvid-marked tests (decision 2026-11-10); memvid tests run once for the record.
 
   Default: the Codex lane in C:\work\rra-codex with every spec from nightcoder_specs\ in backlog order.
     powershell -ExecutionPolicy Bypass -File C:\work\rra-codex\nightcoder_specs\start_night.ps1 -ScreenOff
@@ -23,7 +27,7 @@
 param(
   [string]$Lane = "C:\work\rra-codex",
   [string]$Branch = "nc/rra-codex",
-  [string]$BaseBranch = "feat/day-2026-11-10",
+  [string]$BaseBranch = "auto",
   [string]$NightCoder = "C:\myLectureWs\nightcoder-r9-stage\nc2.py",
   [string]$BaseConfig = "C:\Users\Codelab\tonight\nc2.refactor.json",
   [string]$Work = "C:\Users\Codelab\nc2-rra-codex",
@@ -44,8 +48,23 @@ function Fail($msg, $fix) { Write-Host "STOP: $msg" -ForegroundColor Red; if ($f
 function Ok($msg) { Write-Host "  ok  $msg" -ForegroundColor Green }
 
 # backlog order (README table); smoke is separate
-$Order = @("codex/rra-n1-chroma-owners","codex/rra-n2-learning-summary","codex/rra-n3-golden-gaps")
-# c15 runs in the legal-intake repo, never in this lane
+# queue is built from spec headers in step 6 (status: ready / order: / repo:)
+
+Step 0 "base branch"
+$Repo = Split-Path $PSScriptRoot -Parent
+if ($BaseBranch -eq "auto") {
+  $BaseBranch = (git -C $Repo rev-parse --abbrev-ref HEAD).Trim()
+  if ($LASTEXITCODE -ne 0 -or -not $BaseBranch -or $BaseBranch -eq "HEAD") { Fail "could not read the current branch of $Repo" "git -C $Repo checkout <your day branch>" }
+}
+git -C $Repo fetch origin $BaseBranch --quiet
+if ($LASTEXITCODE -ne 0) { Fail "origin/$BaseBranch not found (branch not pushed yet?)" "git -C $Repo push -u origin $BaseBranch" }
+$localHead = (git -C $Repo rev-parse HEAD).Trim(); $remoteHead = (git -C $Repo rev-parse "origin/$BaseBranch").Trim()
+if ($localHead -ne $remoteHead) {
+  $ahead = (git -C $Repo rev-list --count "origin/$BaseBranch..HEAD").Trim()
+  if ($ahead -ne "0") { Fail "$ahead local commit(s) on $BaseBranch are not pushed; the lane would not see them" "git -C $Repo push origin $BaseBranch" }
+  Write-Host "  note: origin/$BaseBranch is ahead of your local copy; the lane uses origin (git pull later)" -ForegroundColor Yellow
+}
+Ok "base = origin/$BaseBranch ($($remoteHead.Substring(0,7)))"
 
 Step 1 "lane folder and branch"
 if (-not (Test-Path "$Lane\.git")) {
@@ -142,21 +161,33 @@ if (-not $SkipSmoke) {
 Step 6 "queue"
 $Only = @($Only | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })   # "-Only a,b" arrives as one string via -File
 Get-ChildItem "$Work\inbox" -File -Filter *.md -ErrorAction SilentlyContinue | Remove-Item -Force
+$repoName = Split-Path $Lane -Leaf
+$cands = @()
+foreach ($f in (Get-ChildItem "$Lane\nightcoder_specs" -Recurse -File -Filter *.md | Where-Object { $_.FullName -notmatch '\\smoke\\' -and $_.Name -ne 'README.md' })) {
+  $head = Get-Content $f.FullName -Encoding UTF8 -TotalCount 15
+  $status = ($head | Where-Object { $_ -match '^\s*status\s*:' } | Select-Object -First 1) -replace '^\s*status\s*:\s*','' 
+  if ($status.Trim() -ne 'ready') { continue }
+  $repoHdr = ($head | Where-Object { $_ -match '^\s*repo\s*:' } | Select-Object -First 1) -replace '^\s*repo\s*:\s*',''
+  if ($repoHdr -and $repoHdr.Trim() -ne 'research') { Write-Host "  skip (repo: $($repoHdr.Trim())) $($f.Name)"; continue }
+  $ord = ($head | Where-Object { $_ -match '^\s*order\s*:' } | Select-Object -First 1) -replace '^\s*order\s*:\s*',''
+  $tmp = 0; $ordN = if ([int]::TryParse(([string]$ord).Trim(), [ref]$tmp)) { $tmp } else { 9999 }
+  $cands += [pscustomobject]@{ File = $f; Order = $ordN }
+}
 $n = 0
-foreach ($name in $Order) {
-  if ($Only.Count -gt 0 -and -not ($Only | Where-Object { (Split-Path $name -Leaf) -like $_ })) { continue }
-  $src = Join-Path "$Lane\nightcoder_specs" ($name + ".md")
-  if (-not (Test-Path $src)) { Write-Host "  skip (missing) $name"; continue }
-  $lines = Get-Content $src -Encoding UTF8
+foreach ($c in ($cands | Sort-Object Order, @{ Expression = { $_.File.Name } })) {
+  $name = $c.File.BaseName
+  if ($Only.Count -gt 0 -and -not ($Only | Where-Object { $name -like $_ })) { continue }
+  $lines = Get-Content $c.File.FullName -Encoding UTF8
   $filesLine = ($lines | Where-Object { $_ -match '^files:' } | Select-Object -First 1)
   $report = if ($filesLine) { ($filesLine -replace '^files:\s*','').Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '_REPORT_' } | Select-Object -First 1 }
-  if ($report -and (Test-Path (Join-Path $Lane $report))) { Write-Host "  skip (done on main) $name"; continue }
+  if (-not $report) { Write-Host "  warn (no _REPORT_ file in files:, cannot detect done) $name" -ForegroundColor Yellow }
+  if ($report -and (Test-Path (Join-Path $Lane $report))) { Write-Host "  skip (done on $BaseBranch; set status: done) $name"; continue }
   $n++
-  $dest = Join-Path "$Work\inbox" ("{0:D3}-{1}.md" -f $n, (Split-Path $name -Leaf))
-  [IO.File]::WriteAllLines($dest, ($lines | Where-Object { $_ -notmatch '^after:' }), $utf8)
-  Write-Host "  queued $(Split-Path $dest -Leaf)"
+  $dest = Join-Path "$Work\inbox" ("{0:D3}-{1}.md" -f $n, $name)
+  [IO.File]::WriteAllLines($dest, ($lines | Where-Object { $_ -notmatch '^\s*(after|status|order|repo)\s*:' }), $utf8)
+  Write-Host "  queued $(Split-Path $dest -Leaf)  (order $($c.Order))"
 }
-if ($n -eq 0) { Fail "nothing to queue" "all specs are done on main, or -Only matched nothing" }
+if ($n -eq 0) { Fail "nothing to queue" "no spec has status: ready (or all are done on $BaseBranch, or -Only matched nothing)" }
 
 Step 7 "start"
 if (Get-Command powercfg -ErrorAction SilentlyContinue) {
