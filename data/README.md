@@ -22,3 +22,8 @@ HF_HUB_OFFLINE=1 python scripts/compare_embedders.py --golden data/golden_set.js
 
 `1위 정답`은 1위로 고른 조문이 정답과 같은 질문 수, `3위 안 정답`은 상위 3개 안에 정답이 있는 질문 수입니다.
 `data/` 아래 다른 파일(색인, 벡터)은 Git에 올라가지 않습니다.
+
+
+## 검색 골든셋 v2 (`golden_retrieval/terms_v2.json`)
+
+v1 29문항을 v2 형식으로 옮기고 새 유형 14문항을 더한 합성 세트(43문항). 등급·근거 구절(`quote`)·compare/confirm 구분 포함. 설명: [docs/GOLDEN_SET_GUIDE.ko.md](../docs/GOLDEN_SET_GUIDE.ko.md).

@@ -8,17 +8,21 @@
 | `rra-p3-lint.md` | 프로필·골든룰 검사기 `rra check` | 2 |
 | `rra-p2-graph.md` | LangGraph 어댑터 + 로컬 기록 | 3 |
 
-## 시작: 명령 한 줄 (다음부터)
+## 시작: 명령 한 줄 (v2, 2026-11-10)
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File C:\myLectureWs\python-memvid-guardrail\nightcoder_specs\start_night.ps1 -ScreenOff
+powershell -ExecutionPolicy Bypass -File C:\work\rra-codex\nightcoder_specs\start_night.ps1 -ScreenOff
 ```
 
-스크립트가 아래 점검을 순서대로 하고, 문제가 있으면 이유를 말하고 멈춘다: main 최신·깨끗함 → 시험 실패 0 → 명세를 `001-`, `002-` 이름으로 inbox에 복사(`after:` 줄 제거, 순서 = 번호) → 설정 파일 작성(`nc2.rra.template.json` → `C:\Users\Codelab\nc2-rra\nc2.rra.json`) → NightCoder 시험 운행 → 한 번 확인 후 시작(절전 끄기, 선택 시 20초 뒤 화면 끄기).
+처음 한 번은 레인 폴더가 없으면 스크립트가 직접 만든다(그 경우엔 저장소에서 스크립트를 먼저 받아 실행: `git clone https://github.com/ai-agent-orchestrator/langchain-rag-research-agent C:\work\rra-codex`).
 
-옵션: `-DryRun`(점검만), `-Specs "rra-p1-*.md"`(일부만), `-StopAt 07:30`. 코더는 템플릿의 `codex_cmd`(현재 Claude Code CLI)를 쓴다. Codex로 바꾸려면 템플릿의 `codex_cmd`만 고친다.
+순서와 멈춤 지점: ① 레인 폴더·브랜치(최신 main 위로 자동 정렬)·깨끗함 → ② 전체 시험(한 번 재시도) → ③ Codex CLI 옵션 자동 판별(`--full-auto` 없으면 `--sandbox workspace-write`) → ④ 설정 파일 생성(기존 `nc2.refactor.json`의 `codex_cmd`를 바탕으로) → ⑤ **스모크 실행**: 파일 하나 고치고 커밋하는 1~2분짜리 명세를 NightCoder로 실제로 돌려 패치가 나와야 통과 → ⑥ 백로그 순서로 큐 구성(main에 보고서가 이미 있는 명세는 건너뜀) → ⑦ `--yes`로 시작. 어느 단계든 실패하면 원인과 고치는 법을 한 줄로 보여 주고 멈춘다.
 
-새 명세를 추가하려면 이 폴더에 `rra-<이름>.md`를 넣는다(헤더: `files:`, `forbid:`, `effort:`). 실행 순서는 파일 이름 알파벳순이다.
+옵션: `-DryRun`(④까지), `-SkipSmoke`, `-Only "rra-c5*,rra-c6*"`, `-StopAt 07:30`, `-Sandbox full-auto|workspace-write`, `-NoStart`(큐까지만).
+
+**커밋 보장(v3):** Codex는 `codex_wrap.py`를 거쳐 실행된다. Codex가 파일을 고쳤는데 커밋하지 않았으면(어제의 `NO_COMMIT`) 래퍼가 그 변경을 커밋한다. 범위·비밀·시험 게이트는 NightCoder가 그대로 판정한다. 실행마다 `wrap.log`에 종료 코드와 커밋 여부가 한 줄씩 남는다.
+
+**리허설(2026-11-10, 클라우드):** PowerShell 7 + 가짜 NightCoder + 커밋하지 않는 가짜 Codex로 ①~⑦을 끝까지 실행: 옵션 자동 판별(`--sandbox workspace-write`), 스모크 통과(래퍼 커밋), 명세 2개 큐 구성과 `--yes` 시작, 명세마다 패치 수집까지 확인. Windows PowerShell 5.1·실제 nc2·실제 Codex로는 아직 실행 전.
 
 ## 출발 전 점검 (수동으로 할 때, Windows PC, 10분)
 
@@ -55,3 +59,9 @@ powershell -ExecutionPolicy Bypass -File C:\myLectureWs\python-memvid-guardrail\
 | 19 | `codex/rra-c16-guard-adapter-research` | 리서치 저장소에 보안 패키지 연결 (M3, C15 전제) |
 
 대표가 직접 할 단계: 모델 내려받기(`scripts/prepare_models.py`, C12 뒤), Kiwi 설치(`pip install -e .[kiwi]`, C14 뒤).
+| 20 | `codex/rra-c17-golden-v2-tooling` | 검색 골든셋 v2 도구(등급·근거 구절·유형별·신뢰구간·끝-끝 평가) |
+| 21 | `codex/rra-p2b-graph-stages` | P2 보류 해제: `brief.py` 단계 분리 허용 + LangGraph 어댑터 + 로컬 기록 |
+| 22 | `codex/rra-c15b-guard-mirror-legal` | **legal-intake**: 패키지 = 정본과 바이트 동일한 미러 + 동일성 시험 (C15 차단 해제) |
+| 23 | `codex/rra-e1-langchain-exits` | LangChain 출구: Retriever·Runnable·Tool·LCEL 체인 |
+| 24 | `codex/rra-e2-retry-loop` | 근거 부족 시 재검색 루프 (LangGraph, 규칙 기반, 최대 2회) |
+| 25 | `codex/rra-e3-langsmith-export` | 골든셋·결과를 LangSmith 형식으로 내보내기 (업로드는 대표 실행 시만) |
