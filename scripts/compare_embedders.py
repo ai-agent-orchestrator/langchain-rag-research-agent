@@ -7,6 +7,7 @@ import sys
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 from rag_research_agent.core.contracts import RetrievalUnavailable
 from rag_research_agent.embed.providers import EmbeddingError
@@ -17,6 +18,24 @@ from rag_research_agent.observe.evaluate import two_axis_report
 from rag_research_agent.rag.library import Library
 from rag_research_agent.observe.experiments import QueryInstruction, instruction_option, score_summary, metric_table
 from rag_research_agent.rag.learning import chunk_diagnostics
+from scripts.eval_retrieval_v2 import _cleanup_library
+
+
+def _write_comparison(results, out, instruction):
+    report = ["# 임베더 비교", "", "합성 소규모 골든셋, 통계적 결론 아님", "",
+              "| 모델 | 상태 | 지시문 |", "| --- | --- | --- |"]
+    for result in results:
+        report.append(f"| {result['model']} | {result['status']} | {instruction} |")
+    for result in results:
+        if "evaluation" in result:
+            report.extend(["", f"{result['model']}: instruction={instruction}", *metric_table(result["evaluation"]), ""])
+        if "chunking" in result:
+            report.extend(["", "청크 진단: " + json.dumps(result["chunking"], ensure_ascii=False), ""])
+    directory = Path(out) / "compare"
+    directory.mkdir(parents=True, exist_ok=True)
+    text = "\n".join(report)
+    (directory / "comparison.md").write_text(text, encoding="utf-8")
+    (directory / "comparison.html").write_text('<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>임베더 비교</title><body style="background:#0e141b;color:#e6edf6;font:14px/1.6 sans-serif"><h1>임베더 비교</h1><pre style="overflow-x:auto">' + html.escape(text) + '</pre></body></html>', encoding="utf-8")
 
 
 def compare_models(models, set_path, no_evidence_path, corpus_path=ROOT / "data/articles.json", out=".runs",
@@ -76,23 +95,10 @@ def compare_models(models, set_path, no_evidence_path, corpus_path=ROOT / "data/
             directory.mkdir(parents=True, exist_ok=True)
             (directory / f"{name}.json").write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
             results.append(record)
+            _write_comparison(results, out, instruction)
         finally:
-            if lib.index is not None:
-                lib.index.close()
-    report = ["# 임베더 비교", "", "합성 소규모 골든셋, 통계적 결론 아님", "",
-              "| 모델 | 상태 | 지시문 |", "| --- | --- | --- |"]
-    for result in results:
-        report.append(f"| {result['model']} | {result['status']} | {instruction} |")
-    for result in results:
-        if "evaluation" in result:
-            report.extend(["", f"{result['model']}: instruction={instruction}", *metric_table(result["evaluation"]), ""])
-        if "chunking" in result:
-            report.extend(["", "청크 진단: " + json.dumps(result["chunking"], ensure_ascii=False), ""])
-    directory = out / "compare"
-    directory.mkdir(parents=True, exist_ok=True)
-    text = "\n".join(report)
-    (directory / "comparison.md").write_text(text, encoding="utf-8")
-    (directory / "comparison.html").write_text('<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>임베더 비교</title><body style="background:#0e141b;color:#e6edf6;font:14px/1.6 sans-serif"><h1>임베더 비교</h1><pre style="overflow-x:auto">' + html.escape(text) + '</pre></body></html>', encoding="utf-8")
+            _cleanup_library(lib, out)
+    _write_comparison(results, out, instruction)
     return results
 
 
