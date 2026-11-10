@@ -98,12 +98,14 @@ def evaluate(set_path, embedder="fake", split=None, k=3, e2e=False, profile="res
         finally:
             if lib.index is not None:
                 lib.index.close()
-    lines = ["# 검색 골든셋 v2", "", result["note"], "", "| 범위 | n | " + " | ".join(METRICS) + " |",
-             "| --- | --- | " + " | ".join("---" for _ in METRICS) + " |"]
+    lines = ["# 검색 골든셋 v2", "", result["note"], "", "| 범위 | n | 지표 | fake: 경로 시험 | 실제 모델 |",
+             "| --- | --- | --- | --- | --- |"]
     groups = {"overall": result["overall"], **{"type:" + k: v for k,v in result["by_type"].items()},
               **{"split:" + k: v for k,v in result["by_split"].items()}}
     for name, group in groups.items():
-        lines.append("| " + name + " | " + str(group["count"]) + " | " + " | ".join(str(group[m]) for m in METRICS) + " |")
+        for metric in METRICS:
+            values = [str(group[metric]), "미실행"] if embedder == "fake" else ["미실행", str(group[metric])]
+            lines.append(f"| {name} | {group['count']} | {metric} | " + " | ".join(values) + " |")
     text = "\n".join(lines)
     text += "\n\n" + "\n".join(metric_table(result["evaluation"]))
     text += "\n\n청크 진단: " + json.dumps(diagnostics, ensure_ascii=False)
@@ -131,6 +133,8 @@ def main(argv=None):
     ap.add_argument("--alpha", type=float, default=.5)
     ap.add_argument("--rrf-k", type=int, default=60)
     args = ap.parse_args(argv)
+    if not Path(args.out).resolve().is_relative_to(ROOT / ".runs"):
+        ap.error("results must be inside .runs")
     result = evaluate(args.set, args.embedder, args.split, args.k, args.e2e, args.profile, args.out, instruction=args.instruction, chunk_size=args.chunk_size, overlap=args.overlap,
                       retrieval=args.retrieval, alpha=args.alpha, rrf_k=args.rrf_k)
     print(result["overall"])

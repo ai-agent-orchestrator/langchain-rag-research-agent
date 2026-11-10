@@ -80,10 +80,10 @@ def compare_models(models, set_path, no_evidence_path, corpus_path=ROOT / "data/
             if lib.index is not None:
                 lib.index.close()
     report = ["# 임베더 비교", "", "합성 소규모 골든셋, 통계적 결론 아님", "",
-              "| 모델 | 상태 | τ low | τ high | Hit@1 | Hit@3 | MRR |", "| --- | --- | --- | --- | --- | --- | --- |"]
+              "| 모델 | 상태 | 지시문 |", "| --- | --- | --- |"]
     for result in results:
-        report.append("| " + " | ".join(str(value) for value in (result["model"], result["status"], result.get("tau_low", "-"),
-                     result.get("tau_high", "-"), result.get("hit_at_1", "-"), result.get("hit_at_3", "-"), result.get("mrr", "-"))) + " |")
+        report.append(f"| {result['model']} | {result['status']} | {instruction} |")
+    for result in results:
         if "evaluation" in result:
             report.extend(["", f"{result['model']}: instruction={instruction}", *metric_table(result["evaluation"]), ""])
         if "chunking" in result:
@@ -107,6 +107,8 @@ def main(argv=None):
     ap.add_argument("--chunk-size", type=int)
     ap.add_argument("--overlap", type=int, default=0)
     args = ap.parse_args(argv)
+    if not Path(args.out).resolve().is_relative_to(ROOT / ".runs"):
+        ap.error("results must be inside .runs")
     result = compare_models(args.models, args.set, args.no_evidence, args.corpus, args.out, instruction=args.instruction, chunk_size=args.chunk_size, overlap=args.overlap)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
