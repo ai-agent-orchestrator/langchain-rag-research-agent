@@ -22,6 +22,8 @@ powershell -ExecutionPolicy Bypass -File C:\work\rra-codex\nightcoder_specs\star
 
 **커밋 보장(v3):** Codex는 `codex_wrap.py`를 거쳐 실행된다. Codex가 파일을 고쳤는데 커밋하지 않았으면(어제의 `NO_COMMIT`) 래퍼가 그 변경을 커밋한다. 범위·비밀·시험 게이트는 NightCoder가 그대로 판정한다. 실행마다 `wrap.log`에 종료 코드와 커밋 여부가 한 줄씩 남는다.
 
+**자동 이름·보관(v4):** 대표가 넣는 이름은 없다. 레인 폴더·브랜치는 고정, 명세 파일명은 자동 번호, 실행마다 결과 폴더 `C:\Users\Codelab\nc2-rra-codex\runs\<날짜-시각>\outbox`를 새로 만들고 위치를 `LATEST.txt`에 적는다. 레인 브랜치에 main에 없는 커밋이 남아 있으면 맞추기 전에 `nc/archive/<날짜-시각>`으로 자동 보관한다. 스크립트가 main에서 바뀌었으면 1단계 직후 새 버전으로 자동 재시작한다(예전 버전이 끝까지 도는 문제 방지).
+
 **리허설(2026-11-10, 클라우드):** PowerShell 7 + 가짜 NightCoder + 커밋하지 않는 가짜 Codex로 ①~⑦을 끝까지 실행: 옵션 자동 판별(`--sandbox workspace-write`), 스모크 통과(래퍼 커밋), 명세 2개 큐 구성과 `--yes` 시작, 명세마다 패치 수집까지 확인. Windows PowerShell 5.1·실제 nc2·실제 Codex로는 아직 실행 전.
 
 ## 출발 전 점검 (수동으로 할 때, Windows PC, 10분)
