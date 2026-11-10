@@ -13,6 +13,7 @@ from rag_research_agent.observe.golden_v2 import load, score_item, report, METRI
 from rag_research_agent.observe.evaluate import calibrate
 from rag_research_agent.rag.library import Library
 from rag_research_agent.rag.profile import Equalizer
+from rag_research_agent.observe.experiments import QueryInstruction, instruction_option, score_summary, metric_table
 
 
 def _input_policy():
@@ -24,12 +25,13 @@ def _input_policy():
 
 
 def evaluate(set_path, embedder="fake", split=None, k=3, e2e=False, profile="research", out=".runs/eval_v2",
-             library_factory=Library, embedder_factory=create_embedder, policy="auto", corpus=None):
+             library_factory=Library, embedder_factory=create_embedder, policy="auto", corpus=None, instruction="default"):
+    instruction_option(instruction)
     dataset = load(set_path, corpus)
     policy = _input_policy() if policy == "auto" else policy
     if policy is not None and type(policy).__name__ == "FakeInputPolicy":
         policy = None
-    emb = embedder_factory(embedder)
+    emb = QueryInstruction(embedder_factory(embedder), instruction)
     with TemporaryDirectory(prefix="rra-golden-v2-") as temp:
         lib = library_factory(Path(temp) / "index", embedder=emb)
         lib.build([(a["id"], a["title"], a["text"]) for a in dataset["corpus"]])
@@ -49,6 +51,7 @@ def evaluate(set_path, embedder="fake", split=None, k=3, e2e=False, profile="res
                                                         "gap": scores[0] - scores[1] if len(scores) > 1 else 0}})
             rule = calibrate(calibration_rows, "vector", use_gap=False) if calibration_rows else None
             rows = []
+            evaluation_rows = []
             for item in dataset["items"]:
                 if split and item["split"] != split:
                     continue
@@ -60,8 +63,19 @@ def evaluate(set_path, embedder="fake", split=None, k=3, e2e=False, profile="res
                     brief, trace = Equalizer.from_profile(profile).brief(draft, task=item["question"])
                     kept = [r["text"] for r in trace.rows if r.get("kept")]
                 rows.append(score_item(item, hits, accepted, k, kept, statuses[item["id"]]))
+                if item["type"] != "injection":
+                    correct = [h["score"] for h in hits if any(h["source"] == r["source"] and r["quote"] in h["text"] for r in item["relevant"])]
+                    metrics3 = score_item(item, hits, accepted, 3)
+                    evaluation_rows.append({"id": item["id"], "split": item["split"], "type": item["type"],
+                                            "expected": [r["source"] for r in item["relevant"]],
+                                            "correct_score": max(correct) if correct else None,
+                                            "recall_at_3": metrics3["recall"], "reciprocal_rank": metrics3["mrr"],
+                                            "vector": {"top1": hits[0]["score"] if hits else 0,
+                                                       "gap": hits[0]["score"] - hits[1]["score"] if len(hits) > 1 else 0}})
             result = {**report(rows), "name": dataset["name"], "model_id": emb.model_id, "revision": emb.revision,
                       "k": k, "e2e": e2e, "calibration": rule,
+                      "instruction": instruction, "evaluation_rows": evaluation_rows,
+                      "evaluation": score_summary(evaluation_rows, embedder == "fake"),
                       "calibrated_on": [i["id"] for i in dataset["items"] if i["split"] == "compare" and i["type"] != "injection"]}
         finally:
             if lib.index is not None:
@@ -73,6 +87,7 @@ def evaluate(set_path, embedder="fake", split=None, k=3, e2e=False, profile="res
     for name, group in groups.items():
         lines.append("| " + name + " | " + str(group["count"]) + " | " + " | ".join(str(group[m]) for m in METRICS) + " |")
     text = "\n".join(lines)
+    text += "\n\n" + "\n".join(metric_table(result["evaluation"]))
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     (out / "report.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -90,8 +105,9 @@ def main(argv=None):
     ap.add_argument("--e2e", action="store_true")
     ap.add_argument("--profile", default="research")
     ap.add_argument("--out", default=".runs/eval_v2")
+    ap.add_argument("--instruction", default="default", type=instruction_option, metavar="{none,default,custom:<text>}")
     args = ap.parse_args(argv)
-    result = evaluate(args.set, args.embedder, args.split, args.k, args.e2e, args.profile, args.out)
+    result = evaluate(args.set, args.embedder, args.split, args.k, args.e2e, args.profile, args.out, instruction=args.instruction)
     print(result["overall"])
     return 0
 

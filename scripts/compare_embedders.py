@@ -14,10 +14,12 @@ from rag_research_agent.observe import golden
 from rag_research_agent.observe.calibration import summarize_calibration
 from rag_research_agent.observe.evaluate import two_axis_report
 from rag_research_agent.rag.library import Library
+from rag_research_agent.observe.experiments import QueryInstruction, instruction_option, score_summary, metric_table
 
 
 def compare_models(models, set_path, no_evidence_path, corpus_path=ROOT / "data/articles.json", out=".runs",
-                   embedder_factory=create_embedder, library_factory=Library):
+                   embedder_factory=create_embedder, library_factory=Library, instruction="default"):
+    instruction_option(instruction)
     out = Path(out)
     articles = json.loads(Path(corpus_path).read_text(encoding="utf-8"))
     items = golden.assign_splits(golden.load([set_path, no_evidence_path], [a["id"] for a in articles]))
@@ -26,7 +28,7 @@ def compare_models(models, set_path, no_evidence_path, corpus_path=ROOT / "data/
         if name not in ("fake", "e5", "bge-m3"):
             raise ValueError("unknown model name")
         try:
-            embedder = embedder_factory(name)
+            embedder = QueryInstruction(embedder_factory(name), instruction)
         except EmbeddingError as exc:
             results.append({"model": name, "status": "미준비", "reason": str(exc)})
             continue
@@ -51,10 +53,15 @@ def compare_models(models, set_path, no_evidence_path, corpus_path=ROOT / "data/
                 right = [s for d, s in scores.items() if d in row["expected"]]
                 wrong = [s for d, s in scores.items() if d not in row["expected"]]
                 row.update(correct_score=max(right) if right else None, wrong_score=max(wrong) if wrong else None)
+                top = row["vector"]["topk"]
+                row["recall_at_3"] = len(set(top[:3]) & set(row["expected"])) / len(row["expected"]) if row["expected"] else None
+                rank = next((i for i, d in enumerate(top, 1) if d in row["expected"]), None)
+                row["reciprocal_rank"] = 1 / rank if rank else 0
             compare_rows = [r for r in rows if r["split"] == "compare"]
             calibration = summarize_calibration(compare_rows)
             record = {"model": name, "model_id": embedder.model_id, "revision": embedder.revision,
                       "status": "ready", **calibration,
+                      "instruction": instruction, "evaluation": score_summary(compare_rows, name == "fake"), "evaluation_rows": rows,
                       "calibrated_on": [r["id"] for r in compare_rows],
                       "confirm": two_axis_report([r for r in rows if r["split"] == "confirm"], "vector", calibration["rule"]) if calibration["rule"] else None}
             directory = out / "calibration"
@@ -69,6 +76,8 @@ def compare_models(models, set_path, no_evidence_path, corpus_path=ROOT / "data/
     for result in results:
         report.append("| " + " | ".join(str(value) for value in (result["model"], result["status"], result.get("tau_low", "-"),
                      result.get("tau_high", "-"), result.get("hit_at_1", "-"), result.get("hit_at_3", "-"), result.get("mrr", "-"))) + " |")
+        if "evaluation" in result:
+            report.extend(["", f"{result['model']}: instruction={instruction}", *metric_table(result["evaluation"]), ""])
     directory = out / "compare"
     directory.mkdir(parents=True, exist_ok=True)
     text = "\n".join(report)
@@ -84,8 +93,9 @@ def main(argv=None):
     ap.add_argument("--no-evidence", default=str(ROOT / "data/golden_no_evidence.json"))
     ap.add_argument("--corpus", default=str(ROOT / "data/articles.json"))
     ap.add_argument("--out", default=".runs")
+    ap.add_argument("--instruction", default="default", type=instruction_option, metavar="{none,default,custom:<text>}")
     args = ap.parse_args(argv)
-    result = compare_models(args.models, args.set, args.no_evidence, args.corpus, args.out)
+    result = compare_models(args.models, args.set, args.no_evidence, args.corpus, args.out, instruction=args.instruction)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
