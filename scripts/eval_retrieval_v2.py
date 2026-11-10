@@ -16,6 +16,7 @@ from rag_research_agent.rag.library import Library
 from rag_research_agent.rag.profile import Equalizer
 from rag_research_agent.observe.experiments import QueryInstruction, instruction_option, score_summary, metric_table
 from rag_research_agent.rag.learning import chunk_diagnostics
+from rag_research_agent.lab.retrieval_fusion import search as fusion_search
 
 
 def _input_policy():
@@ -27,7 +28,8 @@ def _input_policy():
 
 
 def evaluate(set_path, embedder="fake", split=None, k=3, e2e=False, profile="research", out=".runs/eval_v2",
-             library_factory=Library, embedder_factory=create_embedder, policy="auto", corpus=None, instruction="default", chunk_size=None, overlap=0):
+             library_factory=Library, embedder_factory=create_embedder, policy="auto", corpus=None, instruction="default", chunk_size=None, overlap=0,
+             retrieval="vector", alpha=.5, rrf_k=60):
     instruction_option(instruction)
     dataset = load(set_path, corpus)
     policy = _input_policy() if policy == "auto" else policy
@@ -56,7 +58,7 @@ def evaluate(set_path, embedder="fake", split=None, k=3, e2e=False, profile="res
                 if policy is not None:
                     status = "OK" if policy.check(item["question"]).allowed else "BLOCKED"
                 statuses[item["id"]] = status
-                hits = [] if status == "BLOCKED" else lib.search(item["question"], k=max(k, len(lib.chunks)), mode="vector")
+                hits = [] if status == "BLOCKED" else fusion_search(lib, item["question"], max(k, len(lib.chunks)), retrieval, alpha, rrf_k)
                 rankings[item["id"]] = [{"source": chunk.document_id, "text": chunk.safe_text, "score": score} for chunk, score, _ in hits]
                 scores = [h["score"] for h in rankings[item["id"]]]
                 if item["type"] != "injection" and item["split"] == "compare":
@@ -90,6 +92,7 @@ def evaluate(set_path, embedder="fake", split=None, k=3, e2e=False, profile="res
                       "k": k, "e2e": e2e, "calibration": rule,
                       "instruction": instruction, "evaluation_rows": evaluation_rows,
                       "chunking": diagnostics,
+                      "retrieval": {"method": retrieval, "alpha": alpha, "rrf_k": rrf_k},
                       "evaluation": score_summary(evaluation_rows, embedder == "fake"),
                       "calibrated_on": [i["id"] for i in dataset["items"] if i["split"] == "compare" and i["type"] != "injection"]}
         finally:
@@ -124,8 +127,12 @@ def main(argv=None):
     ap.add_argument("--instruction", default="default", type=instruction_option, metavar="{none,default,custom:<text>}")
     ap.add_argument("--chunk-size", type=int)
     ap.add_argument("--overlap", type=int, default=0)
+    ap.add_argument("--retrieval", choices=["lex", "vector", "rrf", "weighted"], default="vector")
+    ap.add_argument("--alpha", type=float, default=.5)
+    ap.add_argument("--rrf-k", type=int, default=60)
     args = ap.parse_args(argv)
-    result = evaluate(args.set, args.embedder, args.split, args.k, args.e2e, args.profile, args.out, instruction=args.instruction, chunk_size=args.chunk_size, overlap=args.overlap)
+    result = evaluate(args.set, args.embedder, args.split, args.k, args.e2e, args.profile, args.out, instruction=args.instruction, chunk_size=args.chunk_size, overlap=args.overlap,
+                      retrieval=args.retrieval, alpha=args.alpha, rrf_k=args.rrf_k)
     print(result["overall"])
     return 0
 
