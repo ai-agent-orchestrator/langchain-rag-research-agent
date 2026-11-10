@@ -8,17 +8,17 @@
 | `rra-p3-lint.md` | 프로필·골든룰 검사기 `rra check` | 2 |
 | `rra-p2-graph.md` | LangGraph 어댑터 + 로컬 기록 | 3 |
 
-## 시작: 명령 한 줄 (다음부터)
+## 시작: 명령 한 줄 (v2, 2026-11-10)
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File C:\myLectureWs\python-memvid-guardrail\nightcoder_specs\start_night.ps1 -ScreenOff
+powershell -ExecutionPolicy Bypass -File C:\work\rra-codex\nightcoder_specs\start_night.ps1 -ScreenOff
 ```
 
-스크립트가 아래 점검을 순서대로 하고, 문제가 있으면 이유를 말하고 멈춘다: main 최신·깨끗함 → 시험 실패 0 → 명세를 `001-`, `002-` 이름으로 inbox에 복사(`after:` 줄 제거, 순서 = 번호) → 설정 파일 작성(`nc2.rra.template.json` → `C:\Users\Codelab\nc2-rra\nc2.rra.json`) → NightCoder 시험 운행 → 한 번 확인 후 시작(절전 끄기, 선택 시 20초 뒤 화면 끄기).
+처음 한 번은 레인 폴더가 없으면 스크립트가 직접 만든다(그 경우엔 저장소에서 스크립트를 먼저 받아 실행: `git clone https://github.com/ai-agent-orchestrator/langchain-rag-research-agent C:\work\rra-codex`).
 
-옵션: `-DryRun`(점검만), `-Specs "rra-p1-*.md"`(일부만), `-StopAt 07:30`. 코더는 템플릿의 `codex_cmd`(현재 Claude Code CLI)를 쓴다. Codex로 바꾸려면 템플릿의 `codex_cmd`만 고친다.
+순서와 멈춤 지점: ① 레인 폴더·브랜치(최신 main 위로 자동 정렬)·깨끗함 → ② 전체 시험(한 번 재시도) → ③ Codex CLI 옵션 자동 판별(`--full-auto` 없으면 `--sandbox workspace-write`) → ④ 설정 파일 생성(기존 `nc2.refactor.json`의 `codex_cmd`를 바탕으로) → ⑤ **스모크 실행**: 파일 하나 고치고 커밋하는 1~2분짜리 명세를 NightCoder로 실제로 돌려 패치가 나와야 통과 → ⑥ 백로그 순서로 큐 구성(main에 보고서가 이미 있는 명세는 건너뜀) → ⑦ `--yes`로 시작. 어느 단계든 실패하면 원인과 고치는 법을 한 줄로 보여 주고 멈춘다.
 
-새 명세를 추가하려면 이 폴더에 `rra-<이름>.md`를 넣는다(헤더: `files:`, `forbid:`, `effort:`). 실행 순서는 파일 이름 알파벳순이다.
+옵션: `-DryRun`(④까지), `-SkipSmoke`, `-Only "rra-c5*","rra-c6*"`, `-StopAt 07:30`, `-Sandbox full-auto|workspace-write`.
 
 ## 출발 전 점검 (수동으로 할 때, Windows PC, 10분)
 
