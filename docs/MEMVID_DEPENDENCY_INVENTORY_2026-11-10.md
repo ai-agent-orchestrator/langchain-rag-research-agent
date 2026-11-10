@@ -131,3 +131,100 @@ VectorStore Protocol에는 검색/close만 있고 버전 발행·rollback은 들
 | `tests/test_memvid_diagnostics.py` | 직접 의존 표 참조 | 위 직접 의존 표의 계약 | 위 계약별 대조 참조 |
 | `tests/test_memvid_store.py` | 직접 의존 표 참조 | 위 직접 의존 표의 계약 | 위 계약별 대조 참조 |
 | `tests/test_structure.py` | SDK 호출 없음(공용 코드/주석/구조 시험) | 문자열 참조 또는 공용 계약; SDK 의존 아님 | 검색/lexical 공용; 버전 계약은 기능 대조 표 참조 |
+
+## 2026-11-10 설치 후 재조사 (현재 코드 기준)
+
+앞의 미설치/import 감사/247 passed 및 후속 260 passed 기록은 이전 실행 이력이다. 이번 재조사는 SDK를 새로 실행하지 않고 현재 소스·시험·스크립트·문서의 참조를 읽었다. 실제 Chroma 1.5.9 + fake 임베더 경로 재확인 결과는 CHROMA_INTEGRATION_RECHECK_2026-11-10.md를 따른다. SDK 안정성 개선·동등성 완전 입증은 미검증이다.
+
+| 기능/공개 계약 | 현재 Chroma 경로 |
+| --- | --- |
+| 불변 버전 발행 / list_versions | Chroma 경로에 없음 |
+| active/previous 원자 활성화 포인터 | Chroma 경로에 없음 |
+| DB 전체 SHA-256 해시 manifest | Chroma 경로에 없음 |
+| activate에 의한 롤백/roll forward | Chroma 경로에 없음 |
+| 신뢰 manifest 대비 파일 전체 변조 거절 | Chroma 경로에 없음 |
+| IDs·metadata content_hash 불일치 및 임베더 identity/차원 거절 | 일부 있음: Library.open/verify, ChromaIndex.verify/search_vector. 전체 파일 해시와 동일 계약 아님 |
+
+Chroma publish_chroma는 같은 collection을 삭제 후 재생성한다. Library의 manifest 임시 파일 replace는 활성화 버전 포인터가 아니다. verify는 저장된 metadata hash와 manifest hash를 비교하며 문서·벡터의 모든 실제 바이트를 재해싱하지 않는다. metadata를 유지한 채 본문/벡터만 바꾼 모든 변조 거절은 미검증이다. VectorStore Protocol은 search_vector/search_lex/close만 규정한다. 따라서 검색 어댑터 대체 가능성과 버전 생명주기 호환은 별개다. 대체 구현·retry 변경은 하지 않았다.
+
+검색 명령은 `.runs/chroma-recheck-20261110/memvid-references.txt`의 원시 일치 목록으로 보존했다. `rg -n -i --hidden --no-ignore 'memvid|\.mv2'`로 저장소를 검색하고 .git/.venv*/.runs/**/__pycache__/**/egg-info 생성물을 제외했다. 문서의 실행 예시, 경로 문자열, 역사적 참조도 포함했다. 아래 파일별 (c)의 생명주기 계약은 위 다섯 기능을 뜻한다. 문서만 참조하는 항목의 생명주기 실행 계약은 없다. 이 보고서와 새 재확인 보고서는 자체 참조 목록에서 제외한다. 우회한 문자열 조립·외부 저장소/외부 패키지 내부의 동적 호출 전체는 미검증이다.
+
+| 파일 | (a) 개발 기본 경로에 걸리는가 | (b) 대체 시 영향 받는 공개 계약/참조 | (c) 현재 Chroma 대응 |
+| --- | --- | --- | --- |
+| `.gitignore` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `AGENTS.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `README.ko.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `README.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/C11_REPORT_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/C13_REPORT_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/C14_REPORT_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/C17_REPORT_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/C1_REPORT_2026-11-09.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/C2_REPORT_2026-11-09.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/C3_REPORT_2026-11-09.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/C4_REPORT_2026-11-09.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/C5_REPORT_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/C7_REPORT_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/C8_REPORT_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/DECISION_STORE_CHROMA_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/DESIGN.ko.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/DESIGN_REVIEW.ko.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/E3_REPORT_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/FUTURE_MEMVID_BUFFER_SPIKE_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/HANDOFF_CODEX_PROTOTYPE_2026-11-09.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/LEARNING_E6_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/LEARNING_E8_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/LEARNING_SUMMARY_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/M0_BASELINE_BLOCKER_2026-11-09.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/M0_DEBT_REPORT_2026-11-09.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/M1_REAL_MEMVID_BASELINE_REPORT_2026-11-09.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/MODULE_DESIGN.ko.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/MODULE_STRUCTURE.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/P1_REPORT_2026-11-09.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/P2B_REPORT_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/P2_REPORT_2026-11-09.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/P3_REPORT_2026-11-09.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/RAG_REVIEW_FOLLOWUP_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/X0_MEMVID_DIAGNOSIS_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/X0_MEMVID_DIAGNOSIS_FOLLOWUP_2026-11-10.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/diagrams/01-architecture-overview.en.mmd` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/diagrams/01-architecture-overview.mmd` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/diagrams/05-repository-split.en.mmd` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/diagrams/05-repository-split.mmd` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/diagrams/06-concept-map.en.mmd` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/diagrams/06-concept-map.mmd` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/evidence/M0/pytest_baseline.txt` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/evidence/M0/pytest_debt_after_2026-11-09.txt` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/evidence/M0/pytest_debt_after_2026-11-09_initial_io_error.txt` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/evidence/M1/pytest_main_after_m0.txt` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/evidence/M1/pytest_main_after_m0_initial_env.txt` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `docs/study/equalizer-study.html` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `nightcoder_specs/README.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `nightcoder_specs/codex/rra-c5-store-stability.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `nightcoder_specs/start_night.ps1` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `pyproject.toml` | base 아님; memvid/all extra 설치 시 결합 | memvid-sdk==2.0.160, memvid/all extra, pytest marker | chroma extra 있음; 생명주기 Chroma 경로에 없음 |
+| `scripts/diagnose_memvid_writes.py` | 아니오; 명시 진단 | load_memvid → SDK 쓰기/핸들 조건; rra-memvid-write-diagnostics/2 | SDK 진단 대체 해당 없음; 생명주기 Chroma 경로에 없음 |
+| `scripts/probe_memvid.py` | 아니오; 명시 진단 | load_memvid → SDK use/put_many/seal/find/close; capability JSON | SDK 진단 대체 해당 없음; 생명주기 Chroma 경로에 없음 |
+| `scripts/store_stress.py` | --store memvid에만 걸림; chroma 분기 SDK import 없음 | publish_index/open_active; publish/reopen/self-search/집계 | Chroma 분기 검색 있음; 버전 계약 Chroma 경로에 없음 |
+| `src/rag_research_agent/core/contracts.py` | 예; SDK import 없음 | Chunk/IndexManifest/Query/Evidence/Outcome/오류 계약 | Chunk/검색 공용; IndexManifest 생명주기 Chroma 경로에 없음 |
+| `src/rag_research_agent/core/lexical.py` | 예; SDK import 없음 | lex_terms 공용 토큰 규칙; memvid는 주석 | 공용 함수 사용; 생명주기 Chroma 경로에 없음 |
+| `src/rag_research_agent/guard/network.py` | 공용 보안 경유; SDK import 없음 | memvid 자동 임베딩 방지와 MEMVID_TELEMETRY 설정 | Chroma는 자체 telemetry off; 생명주기 Chroma 경로에 없음 |
+| `src/rag_research_agent/lab/hybrid.py` | 선택 lab; SDK import 없음 | RRF; memvid는 예시 주석 | 융합은 저장소 외부 공용; 생명주기 Chroma 경로에 없음 |
+| `src/rag_research_agent/rag/library.py` | 예; SDK import/호출 없음 | Library build/open/CRUD/search/brief; Chroma 명시 선택 | Chroma Library 있음; 버전/포인터/파일 해시/롤백 Chroma 경로에 없음 |
+| `src/rag_research_agent/store/chroma_store.py` | 예; memvid는 비교 주석만 | publish_chroma/ChromaIndex search/verify/count/close | Chroma 구현; 버전/포인터/파일 해시/롤백 Chroma 경로에 없음 |
+| `src/rag_research_agent/store/memvid_store.py` | 아니오; 명시 memvid 어댑터 | load_memvid, publish_index, open_active, MemvidIndex, activate, list_versions, prune; IndexManifest | 검색 대응; 버전/포인터/파일 해시/롤백/동일 변조 거절은 Chroma 경로에 없음 |
+| `src/rag_research_agent/store/protocols.py` | 공용 계약; SDK import 없음 | VectorStore search_vector/search_lex/close | 동일 검색 표면 있음; 생명주기 Chroma 경로에 없음 |
+| `tests/fixtures/synthetic_guides/README.md` | 런타임 없음; 문서·명세·증거·설정 참조 | memvid 언급/실행 예시/과거 작업 경로; 실행 공개 API 계약 없음 | 문서 자체는 대체 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `tests/test_chroma_store.py` | 전체 시험; 실제 Chroma | publish/verify/vector/lex/metadata tamper/dimension/telemetry | 검색과 부분 불일치 거절 있음; 파일 전체 해시 계약 Chroma 경로에 없음 |
+| `tests/test_contracts.py` | 전체 시험; SDK 실행 없음 | IndexManifest 값/모델 identity/중복 계약; .mv2 문자열 | 공용 값 계약; 파일 버전 생명주기 Chroma 경로에 없음 |
+| `tests/test_index_lifecycle.py` | 앱 기본 아니오; 전체 시험 실행 | activate/list_versions/prune/open_active/publish_index; rollback, tampered activation | Chroma 경로에 없음 |
+| `tests/test_lexical_compatibility.py` | SDK 실행 없음; 전체 시험에서 호환 import | memvid_store.lex_terms와 core.lexical.lex_terms 함수 identity | 공용 lex_terms를 Chroma도 사용; 생명주기 Chroma 경로에 없음 |
+| `tests/test_memvid_diagnostics.py` | 앱 기본 아니오; fake SDK 시험 | 진단 trial의 최초 오류/close 처리; 동적 모듈 import | 진단 fake 시험 대체 해당 없음; 생명주기 Chroma 경로에 없음 |
+| `tests/test_memvid_diagnostics_followup.py` | 앱 기본 아니오; fake SDK 시험 | 진단 trial delay/inspection/close-only/Wilson/schema; 동적 모듈 import | 진단 fake 시험 대체 해당 없음; 생명주기 Chroma 경로에 없음 |
+| `tests/test_memvid_store.py` | 앱 기본 아니오; 전체 시험 실행 | publish/open, 불변 버전, hash/identity/dimension 거절, 게이트, batch | 검색·차원 대응; 생명주기/파일 변조 계약 Chroma 경로에 없음 |
+| `tests/test_structure.py` | 전체 시험; SDK 실행 없음 | 선택 의존성 import 격리 AST 검사 | Chroma 대체 구현 대상 아님; 생명주기 Chroma 경로에 없음 |
+| `uv.lock` | 앱 런타임 아님; 로컬 비추적 lock의 설치 해석 시 결합 | 옛 memvid-guardrail 프로젝트명과 memvid/all extra, SDK 2.0.160 잠금. 현 pyproject와 동기화 여부 미검증; 수정/설치하지 않음 | 현 pyproject에는 chroma extra 있음; 생명주기 Chroma 경로에 없음 |
+
+공용 비직접 경유: `src/rag_research_agent/store/retry.py`의 retry_io/transient_write_error는 두 어댑터가 사용한다. SDK import 없음. 정책을 변경하지 않았다. 개발 기본 Library 및 E1/E5/E7 실행에서 memvid_sdk import는 차단했으며 통과한 E1·E3 경로와 실패한 E5/E7 모두 차단 위반은 없었다. 실패가 정리 단계에서 발생했으므로 E5/E7 전체 성공을 입증하지 않는다.
+
+이번 전체 시험: **257 passed, 2 failed, 1 error, 1 skipped** (26.97s). memvid MV999 쓰기 실패 1개 + setup error 1개와 실행 환경이 유발한 tracing 대조 실패 1개를 숨기지 않았다. tracing 단독 대조는 환경변수 충돌 제거 후 1 passed이며 전체 시험 수치를 대체하지 않는다. memvid 재시험 없음. 보호 18개 SHA-256 기준·작업 전후 모두 동일. 증거는 `.runs/chroma-recheck-20261110/pytest-summary.json`, `pytest.log`, `protected-sha256.json`.
