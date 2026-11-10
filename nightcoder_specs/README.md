@@ -75,3 +75,11 @@ powershell -ExecutionPolicy Bypass -File C:\work\rra-codex\nightcoder_specs\star
 | 23 | `codex/rra-e1-langchain-exits` | LangChain 출구: Retriever·Runnable·Tool·LCEL 체인 |
 | 24 | `codex/rra-e2-retry-loop` | 근거 부족 시 재검색 루프 (LangGraph, 규칙 기반, 최대 2회) |
 | 25 | `codex/rra-e3-langsmith-export` | 골든셋·결과를 LangSmith 형식으로 내보내기 (업로드는 대표 실행 시만) |
+| 26 | `codex/rra-f1-research-command` | 한 줄 리서치 `rra research`: 자료 → 서재 → 검색 → 브리프 → 수치표 → 보고서 |
+| 27 | `codex/rra-f2-memvid-writer` | memvid 쓰기 간헐 오류 원인 찾기·해결 (재현 30회, 가설별 검증) |
+| 28 | `codex/rra-f3-dashboard-hub` | 보드 모음 첫 화면 `.runs/index.html` |
+| 29 | `codex/rra-f4-tune-workflow` | 튜닝 제안 → 대표 승인 → 백업·적용·검사·전후 비교 |
+| 30 | `codex/rra-f5-auto-causal-class` | 프로필 자동 분류 옵션 (인과·한계 문장이 먼저 빠지는 문제) |
+| 31 | `codex/rra-f6-number-charts` | 수치표 → 지표별 작은 차트 (X 기간, Y 값) |
+| 32 | `codex/rra-f7-ci` | GitHub Actions 시험 + README 배지 (**낮 Codex 전용**) |
+| 33 | `codex/rra-f8-predict-from-brief` | 리서치 결과에서 바로 예측 기록 |

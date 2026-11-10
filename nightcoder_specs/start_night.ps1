@@ -51,7 +51,10 @@ $Order = @("rra-p1-cli-inputs","rra-p3-lint","rra-p2-graph",
   "codex/rra-c5-store-stability","codex/rra-c6-library-incremental","codex/rra-c7-number-table","codex/rra-c8-wire-links-relevance",
   "codex/rra-c9-board-diff","codex/rra-c10-prediction-log","codex/rra-c11-cue-suggester","codex/rra-c12-real-embedders",
   "codex/rra-c13-embedder-compare","codex/rra-c14-kiwi-lab","codex/rra-c16-guard-adapter-research","codex/rra-c17-golden-v2-tooling",
-  "codex/rra-p2b-graph-stages","codex/rra-e1-langchain-exits","codex/rra-e2-retry-loop","codex/rra-e3-langsmith-export")
+  "codex/rra-p2b-graph-stages","codex/rra-e1-langchain-exits","codex/rra-e2-retry-loop","codex/rra-e3-langsmith-export",
+  "codex/rra-f1-research-command","codex/rra-f2-memvid-writer","codex/rra-f3-dashboard-hub","codex/rra-f4-tune-workflow",
+  "codex/rra-f5-auto-causal-class","codex/rra-f6-number-charts","codex/rra-f8-predict-from-brief")
+# f7 (CI) touches .github, which NightCoder forbids: daytime Codex only
 # c15 runs in the legal-intake repo, never in this lane
 
 Step 1 "lane folder and branch"
