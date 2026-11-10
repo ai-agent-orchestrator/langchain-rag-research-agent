@@ -32,8 +32,13 @@ param(
   [switch]$DryRun,
   [switch]$SkipSmoke,
   [switch]$ScreenOff,
-  [switch]$NoStart
+  [switch]$NoStart,
+  [switch]$Supervise,
+  [int]$MaxRestarts = 12,
+  [switch]$Relaunched
 )
+$SelfPath = $PSCommandPath
+$SelfHash = if ($SelfPath) { (Get-FileHash $SelfPath -Algorithm SHA256).Hash } else { "" }
 $ErrorActionPreference = "Continue"   # native tools write to stderr; we judge by exit codes only
 $utf8 = New-Object System.Text.UTF8Encoding $false
 function Step($n, $msg) { Write-Host "`n[$n] $msg" -ForegroundColor Cyan }
@@ -46,7 +51,10 @@ $Order = @("rra-p1-cli-inputs","rra-p3-lint","rra-p2-graph",
   "codex/rra-c5-store-stability","codex/rra-c6-library-incremental","codex/rra-c7-number-table","codex/rra-c8-wire-links-relevance",
   "codex/rra-c9-board-diff","codex/rra-c10-prediction-log","codex/rra-c11-cue-suggester","codex/rra-c12-real-embedders",
   "codex/rra-c13-embedder-compare","codex/rra-c14-kiwi-lab","codex/rra-c16-guard-adapter-research","codex/rra-c17-golden-v2-tooling",
-  "codex/rra-p2b-graph-stages","codex/rra-e1-langchain-exits","codex/rra-e2-retry-loop","codex/rra-e3-langsmith-export")
+  "codex/rra-p2b-graph-stages","codex/rra-e1-langchain-exits","codex/rra-e2-retry-loop","codex/rra-e3-langsmith-export",
+  "codex/rra-f1-research-command","codex/rra-f2-memvid-writer","codex/rra-f3-dashboard-hub","codex/rra-f4-tune-workflow",
+  "codex/rra-f5-auto-causal-class","codex/rra-f6-number-charts","codex/rra-f8-predict-from-brief")
+# f7 (CI) touches .github, which NightCoder forbids: daytime Codex only
 # c15 runs in the legal-intake repo, never in this lane
 
 Step 1 "lane folder and branch"
@@ -59,8 +67,35 @@ $dirtyNow = git -C $Lane status --porcelain
 if ($dirtyNow) { git -C $Lane status --short; Fail "lane folder has uncommitted changes" "git -C $Lane stash push -u -m before-night   (or delete the files listed above)" }
 git fetch origin main --quiet
 if ($LASTEXITCODE -ne 0) { Fail "git fetch failed" "check the network" }
+$Stamp = Get-Date -Format "yyyyMMdd-HHmm"
+# keep last night's work: archive the lane branch if it has commits that are not on main yet
+$exists = git rev-parse --verify --quiet "refs/heads/$Branch"
+if ($exists) {
+  $ahead = git rev-list --count "origin/main..$Branch"
+  if ([int]$ahead -gt 0) { git branch -f "nc/archive/$Stamp" $Branch | Out-Null; Ok "archived $ahead commit(s) of $Branch as nc/archive/$Stamp" }
+}
 git checkout -B $Branch origin/main --quiet
 if ($LASTEXITCODE -ne 0) { Fail "could not put $Branch on origin/main" "" }
+# self-update: if this run just pulled a newer version of this very script, restart with it
+if (-not $Relaunched -and $SelfPath -and (Test-Path $SelfPath)) {
+  $newHash = (Get-FileHash $SelfPath -Algorithm SHA256).Hash
+  if ($newHash -ne $SelfHash) {
+    Write-Host "  start script was updated on main; restarting with the new version..." -ForegroundColor Yellow
+    $hostExe = (Get-Process -Id $PID).Path
+    $argsList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $SelfPath, "-Relaunched")
+    foreach ($k in $PSBoundParameters.Keys) {
+      $v = $PSBoundParameters[$k]
+      if ($v -is [System.Management.Automation.SwitchParameter]) { if ($v.IsPresent) { $argsList += "-$k" } }
+      elseif ($v -is [array]) { $argsList += "-$k"; $argsList += ($v -join ",") }
+      else { $argsList += "-$k"; $argsList += "$v" }
+    }
+    if ($args.Count -gt 0) { $argsList += $args }   # options this older copy did not know (added in newer versions)
+    & $hostExe @argsList
+    exit $LASTEXITCODE
+  }
+}
+# reaching here means no self-update restart: leftover arguments are typos, not newer options
+if ($args.Count -gt 0) { Fail "unknown option(s): $($args -join ' ')" "check the spelling; options are listed at the top of start_night.ps1" }
 Ok ("$Branch = " + (git log --oneline -1))
 
 Step 2 "test baseline"
@@ -105,10 +140,12 @@ function LaneConfig($inbox, $outbox, $state, $maxTasks) {
   if ($c.PSObject.Properties.Name -contains "codex_timeout_min") { $c.codex_timeout_min = 90 }
   return $c
 }
-New-Item -ItemType Directory -Force "$Work\inbox","$Work\outbox","$Work\state","$Work\smoke\inbox","$Work\smoke\outbox","$Work\smoke\state" | Out-Null
-$mainCfg = Join-Path $Work "nc2.lane.json"; $smokeCfg = Join-Path $Work "nc2.smoke.json"
-[IO.File]::WriteAllText($mainCfg, ((LaneConfig "$Work\inbox" "$Work\outbox" "$Work\state" 30) | ConvertTo-Json -Depth 8), $utf8)
-[IO.File]::WriteAllText($smokeCfg, ((LaneConfig "$Work\smoke\inbox" "$Work\smoke\outbox" "$Work\state" 1) | ConvertTo-Json -Depth 8), $utf8)
+# every run gets its own dated result folder: nothing is overwritten, nothing to name by hand
+$Run = Join-Path (Join-Path $Work "runs") $Stamp
+New-Item -ItemType Directory -Force "$Work\inbox","$Run\outbox","$Work\state","$Work\smoke\inbox","$Run\smoke-outbox" | Out-Null
+$mainCfg = Join-Path $Run "nc2.lane.json"; $smokeCfg = Join-Path $Run "nc2.smoke.json"
+[IO.File]::WriteAllText($mainCfg, ((LaneConfig "$Work\inbox" "$Run\outbox" "$Work\state" 30) | ConvertTo-Json -Depth 8), $utf8)
+[IO.File]::WriteAllText($smokeCfg, ((LaneConfig "$Work\smoke\inbox" "$Run\smoke-outbox" "$Work\state" 1) | ConvertTo-Json -Depth 8), $utf8)
 Ok "codex_cmd: $($wrapped -join ' ')"
 Ok $mainCfg
 if ($DryRun) { Write-Host "`nDry run: stopped before the smoke run." -ForegroundColor Yellow; exit 0 }
@@ -116,13 +153,12 @@ if ($DryRun) { Write-Host "`nDry run: stopped before the smoke run." -Foreground
 if (-not $SkipSmoke) {
   Step 5 "smoke run through NightCoder (1-2 min)"
   Get-ChildItem "$Work\smoke\inbox" -File -ErrorAction SilentlyContinue | Remove-Item -Force
-  Get-ChildItem "$Work\smoke\outbox" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
   Copy-Item "$Lane\nightcoder_specs\smoke\rra-smoke.md" "$Work\smoke\inbox\000-rra-smoke.md"
   Write-Host "  NightCoder asks its start questions now (same state folder as the real run, so --yes can reuse them)." -ForegroundColor Yellow
   & $SysPython $NightCoder --config $smokeCfg --stop-at ((Get-Date).AddMinutes(20).ToString("HH:mm"))
-  $patches = Get-ChildItem "$Work\smoke\outbox" -Recurse -Filter *.patch -ErrorAction SilentlyContinue
+  $patches = Get-ChildItem "$Run\smoke-outbox" -Recurse -Filter *.patch -ErrorAction SilentlyContinue
   if (-not $patches) {
-    $report = Get-ChildItem "$Work\smoke\outbox" -Recurse -Filter REPORT.md -ErrorAction SilentlyContinue | Select-Object -First 1
+    $report = Get-ChildItem "$Run\smoke-outbox" -Recurse -Filter REPORT.md -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($report) { Write-Host "---- smoke REPORT (last 25 lines) ----"; Get-Content $report.FullName -Encoding UTF8 -Tail 25 }
     if (Test-Path $wrapLog) { Write-Host "---- wrap.log (last 3) ----"; Get-Content $wrapLog -Tail 3 }
     $hint = "send the REPORT and wrap.log lines above to Claude (wrap.log shows the coder exit code and whether anything changed)"
@@ -160,6 +196,31 @@ if ($ScreenOff -and $IsWindows -ne $false) {
   Start-Job { Start-Sleep 30; (Add-Type '[DllImport("user32.dll")]public static extern int SendMessage(int hWnd,int hMsg,int wParam,int lParam);' -Name ScreenOff -Namespace Win32 -PassThru)::SendMessage(-1,0x0112,0xF170,2) } | Out-Null
   Write-Host "  display turns off in 30 seconds"
 }
-if ($NoStart) { Write-Host "`n-NoStart: queue ready, NightCoder not started." -ForegroundColor Yellow; exit 0 }
-Write-Host "  results: $Work\outbox   (keep this window open)" -ForegroundColor Green
-& $SysPython $NightCoder --config $mainCfg --yes --stop-at $StopAt
+if ($NoStart) { Set-Content -Path (Join-Path $Work "LATEST.txt") -Value $Run -Encoding UTF8; Write-Host "`n-NoStart: queue ready, NightCoder not started. Run folder: $Run" -ForegroundColor Yellow; exit 0 }
+Set-Content -Path (Join-Path $Work "LATEST.txt") -Value $Run -Encoding UTF8
+Write-Host "  results: $Run\outbox   (also written to $Work\LATEST.txt; keep this window open)" -ForegroundColor Green
+$summarize = Join-Path $Lane "nightcoder_specs\summarize_run.py"
+$supLog = Join-Path $Run "supervise.log"
+function Log($m) { $line = (Get-Date -Format "yyyy-MM-dd HH:mm") + "  " + $m; Add-Content -Path $supLog -Value $line -Encoding UTF8; Write-Host $line }
+function Summarize { & $SysPython $summarize --run $Run --lane $Lane --work $Work | Out-Null; Write-Host "  summary: $Run\SUMMARY.html" -ForegroundColor Green }
+# stop time as a DateTime (HH:mm = next occurrence; or full ISO date-time)
+$stopTime = if ($StopAt -match '^\d{1,2}:\d{2}$') { $t = [datetime]::ParseExact($StopAt, "H:mm", $null); if ($t -le (Get-Date)) { $t.AddDays(1) } else { $t } } else { [datetime]::Parse($StopAt) }
+Log "start: $n spec(s), stop at $($stopTime.ToString('yyyy-MM-dd HH:mm')), supervise=$($Supervise.IsPresent)"
+$restarts = 0
+while ($true) {
+  $t0 = Get-Date
+  & $SysPython $NightCoder --config $mainCfg --yes --stop-at $StopAt
+  $rc = $LASTEXITCODE
+  $left = @(Get-ChildItem "$Work\inbox" -File -Filter *.md -ErrorAction SilentlyContinue)
+  Log "NightCoder exited rc=$rc after $([int]((Get-Date) - $t0).TotalMinutes) min; $($left.Count) spec(s) left in the inbox"
+  Summarize
+  if (-not $Supervise) { break }
+  if ($left.Count -eq 0) { Log "queue empty: done"; break }
+  if ((Get-Date) -ge $stopTime.AddMinutes(-20)) { Log "stop time reached: done"; break }
+  if ($restarts -ge $MaxRestarts) { Log "restart limit $MaxRestarts reached: done"; break }
+  if (((Get-Date) - $t0).TotalMinutes -lt 2 -and $restarts -gt 0) { Log "NightCoder stopped again within 2 minutes (likely needs fresh start answers or usage reset): done"; break }
+  $restarts++
+  Log "restart $restarts/$MaxRestarts with the remaining specs (a failed spec is not retried)"
+  Start-Sleep -Seconds 30
+}
+Summarize
