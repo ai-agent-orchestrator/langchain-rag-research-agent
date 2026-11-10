@@ -48,3 +48,10 @@ powershell -ExecutionPolicy Bypass -File C:\myLectureWs\python-memvid-guardrail\
 | 12 | `codex/rra-c9-board-diff` | 필터 차이 보드 + 실행 추이 |
 | 13 | `codex/rra-c10-prediction-log` | 예측 기록장 뼈대 |
 | 14 | `codex/rra-c11-cue-suggester` | 신호 표현 추천 도우미 |
+| 15 | `codex/rra-c12-real-embedders` | 실제 임베딩(E5 기본, BGE-M3 후보), 모델 준비 스크립트, 오프라인 강제 |
+| 16 | `codex/rra-c13-embedder-compare` | 임베딩 비교 + τ 보정 (M2) |
+| 17 | `codex/rra-c14-kiwi-lab` | Kiwi 형태소 키워드 실험 (O5) |
+| 18 | `codex/rra-c15-guard-package-legal` | **legal-intake 저장소**에서 보안 코어 패키지 분리 (새 클론에서) |
+| 19 | `codex/rra-c16-guard-adapter-research` | 리서치 저장소에 보안 패키지 연결 (M3, C15 전제) |
+
+대표가 직접 할 단계: 모델 내려받기(`scripts/prepare_models.py`, C12 뒤), Kiwi 설치(`pip install -e .[kiwi]`, C14 뒤).
