@@ -13,6 +13,7 @@ MATURITY = "incubating"
 import hashlib
 import math
 import os
+import re
 import time
 from typing import Protocol, Sequence
 
@@ -82,16 +83,17 @@ class FakeEmbedder:
 class E5Embedder:
     normalization = "l2"
     dimension = 1024
+    max_tokens = E5_MAX_TOKENS
 
     def __init__(self, revision: str, device: str = "cpu", batch_size: int = 8,
-                 max_seconds: float = 600.0, task: str = DEFAULT_TASK, model_id: str = E5_MODEL_ID):
-        if not revision or revision == "main":
+                 max_seconds: float = 600.0, task: str = DEFAULT_TASK, model_id: str = E5_MODEL_ID,
+                 loader=None):
+        if not re.fullmatch(r"[0-9a-fA-F]{40}", revision or ""):
             raise EmbeddingError("pin an exact model revision (commit hash)")
+        require_offline()
         self.model_id, self.revision, self.task = model_id, revision, task
         self.batch_size, self.max_seconds = batch_size, max_seconds
-        from sentence_transformers import SentenceTransformer  # local import: heavy, optional
-        self._model = SentenceTransformer(model_id, revision=revision, device=device,
-                                          trust_remote_code=False)
+        self._model = _load_model(model_id, revision, device, loader)
         self._tokenizer = self._model.tokenizer
 
     def count_tokens(self, text: str) -> int:
@@ -103,8 +105,8 @@ class E5Embedder:
 
     def _encode(self, texts: list[str]) -> list[list[float]]:
         for t in texts:
-            if self.count_tokens(t) > E5_MAX_TOKENS:
-                raise EmbeddingError("input exceeds the 512-token limit; split it first")
+            if self.count_tokens(t) > self.max_tokens:
+                raise EmbeddingError(f"input exceeds the {self.max_tokens}-token limit; split it first")
         start = time.monotonic()
         out = []
         for i in range(0, len(texts), self.batch_size):
@@ -134,5 +136,27 @@ def make_embedder(kind: str, revision: str | None = None, device: str = "cpu",
 
 def require_offline() -> None:
     """After the one-time pinned download, real runs must load from the local cache only."""
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
     if os.environ.get("HF_HUB_OFFLINE") != "1":
         raise EmbeddingError("set HF_HUB_OFFLINE=1 after the pinned download")
+
+
+def _load_model(model_id, revision, device, loader=None):
+    try:
+        if loader is None:
+            from sentence_transformers import SentenceTransformer
+            loader = SentenceTransformer
+        return loader(model_id, revision=revision, device=device, trust_remote_code=False, local_files_only=True)
+    except (ImportError, OSError, ValueError) as exc:
+        raise EmbeddingError("로컬 모델을 불러올 수 없습니다. embeddings extra 설치 후 scripts/prepare_models.py로 먼저 내려받으세요") from exc
+
+
+class BgeM3Embedder(E5Embedder):
+    """Dense BGE-M3 candidate; normalized vectors, no query/passage prefixes."""
+    max_tokens = 8192
+
+    def __init__(self, revision, device="cpu", batch_size=8, max_seconds=600.0, loader=None):
+        super().__init__(revision, device, batch_size, max_seconds, model_id="BAAI/bge-m3", loader=loader)
+
+    def query_text(self, text):
+        return text
