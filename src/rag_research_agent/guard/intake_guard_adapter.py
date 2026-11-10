@@ -38,3 +38,12 @@ class IntakeInputPolicy:
     def check(self, text):
         result = self.package.check_input_policy(text, profile=self.profile)
         return PolicyDecision(result.decision == self.package.Decision.ALLOW, result.reason_code)
+
+
+class IntakeOutputPolicy:
+    def __init__(self, profile="research"):
+        self.package, self.profile = _package(), profile
+
+    def check(self, text):
+        result = self.package.check_output_policy(text, profile=self.profile)
+        return PolicyDecision(result.decision == self.package.Decision.ALLOW, result.reason_code)

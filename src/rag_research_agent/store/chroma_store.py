@@ -115,4 +115,11 @@ class ChromaIndex:
         return [(self._chunk(cid), float(h), r + 1) for r, (h, cid) in enumerate(scored[:k])]
 
     def close(self) -> None:
-        self._col = None
+        """Release this client's ownership using Chroma's public, reference-counted API."""
+        client = self._client
+        try:
+            if client is not None:
+                client.close()
+        finally:
+            self._col = None
+            self._client = None

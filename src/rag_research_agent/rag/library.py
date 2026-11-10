@@ -20,6 +20,7 @@ from rag_research_agent.core.contracts import Chunk, RetrievalUnavailable
 from rag_research_agent.embed.providers import FakeEmbedder
 from rag_research_agent.embed.registry import create_embedder, DEFAULT_MODELS
 from rag_research_agent.ingest.paragraphs import paragraph_chunks
+from rag_research_agent.ingest.token_windows import token_windows
 from rag_research_agent.store.chroma_store import ChromaIndex, publish_chroma, load_chroma
 
 MANIFEST = "library_manifest.json"
@@ -41,12 +42,16 @@ class Library:
         self.max_chars = 600
 
     # ---- build / open
-    def build(self, docs: Sequence[tuple[str, str, str]], max_chars: int = 600) -> "Library":
+    def build(self, docs: Sequence[tuple[str, str, str]], max_chars: int = 600, *, chunk_size=None, overlap=0) -> "Library":
         """docs: (doc_id, title, text). Explicitly rebuild the whole collection."""
         if len({d[0] for d in docs}) != len(docs):
             raise ValueError("duplicate document ID")
         self.max_chars = max_chars
-        chunks = [c for doc_id, title, text in docs for c in paragraph_chunks(doc_id, title, text, max_chars=max_chars)]
+        if chunk_size is None and overlap:
+            raise ValueError("overlap requires chunk_size")
+        chunks = [c for doc_id, title, text in docs for c in (
+            token_windows(doc_id, title, text, self.embedder.count_tokens, chunk_size, overlap)
+            if chunk_size is not None else paragraph_chunks(doc_id, title, text, max_chars=max_chars))]
         if not chunks:
             raise ValueError("no text to index")
         self.path.mkdir(parents=True, exist_ok=True)
