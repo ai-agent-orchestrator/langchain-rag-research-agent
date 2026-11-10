@@ -32,8 +32,11 @@ param(
   [switch]$DryRun,
   [switch]$SkipSmoke,
   [switch]$ScreenOff,
-  [switch]$NoStart
+  [switch]$NoStart,
+  [switch]$Relaunched
 )
+$SelfPath = $PSCommandPath
+$SelfHash = if ($SelfPath) { (Get-FileHash $SelfPath -Algorithm SHA256).Hash } else { "" }
 $ErrorActionPreference = "Continue"   # native tools write to stderr; we judge by exit codes only
 $utf8 = New-Object System.Text.UTF8Encoding $false
 function Step($n, $msg) { Write-Host "`n[$n] $msg" -ForegroundColor Cyan }
@@ -59,8 +62,32 @@ $dirtyNow = git -C $Lane status --porcelain
 if ($dirtyNow) { git -C $Lane status --short; Fail "lane folder has uncommitted changes" "git -C $Lane stash push -u -m before-night   (or delete the files listed above)" }
 git fetch origin main --quiet
 if ($LASTEXITCODE -ne 0) { Fail "git fetch failed" "check the network" }
+$Stamp = Get-Date -Format "yyyyMMdd-HHmm"
+# keep last night's work: archive the lane branch if it has commits that are not on main yet
+$exists = git rev-parse --verify --quiet "refs/heads/$Branch"
+if ($exists) {
+  $ahead = git rev-list --count "origin/main..$Branch"
+  if ([int]$ahead -gt 0) { git branch -f "nc/archive/$Stamp" $Branch | Out-Null; Ok "archived $ahead commit(s) of $Branch as nc/archive/$Stamp" }
+}
 git checkout -B $Branch origin/main --quiet
 if ($LASTEXITCODE -ne 0) { Fail "could not put $Branch on origin/main" "" }
+# self-update: if this run just pulled a newer version of this very script, restart with it
+if (-not $Relaunched -and $SelfPath -and (Test-Path $SelfPath)) {
+  $newHash = (Get-FileHash $SelfPath -Algorithm SHA256).Hash
+  if ($newHash -ne $SelfHash) {
+    Write-Host "  start script was updated on main; restarting with the new version..." -ForegroundColor Yellow
+    $hostExe = (Get-Process -Id $PID).Path
+    $argsList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $SelfPath, "-Relaunched")
+    foreach ($k in $PSBoundParameters.Keys) {
+      $v = $PSBoundParameters[$k]
+      if ($v -is [System.Management.Automation.SwitchParameter]) { if ($v.IsPresent) { $argsList += "-$k" } }
+      elseif ($v -is [array]) { $argsList += "-$k"; $argsList += ($v -join ",") }
+      else { $argsList += "-$k"; $argsList += "$v" }
+    }
+    & $hostExe @argsList
+    exit $LASTEXITCODE
+  }
+}
 Ok ("$Branch = " + (git log --oneline -1))
 
 Step 2 "test baseline"
@@ -105,10 +132,12 @@ function LaneConfig($inbox, $outbox, $state, $maxTasks) {
   if ($c.PSObject.Properties.Name -contains "codex_timeout_min") { $c.codex_timeout_min = 90 }
   return $c
 }
-New-Item -ItemType Directory -Force "$Work\inbox","$Work\outbox","$Work\state","$Work\smoke\inbox","$Work\smoke\outbox","$Work\smoke\state" | Out-Null
-$mainCfg = Join-Path $Work "nc2.lane.json"; $smokeCfg = Join-Path $Work "nc2.smoke.json"
-[IO.File]::WriteAllText($mainCfg, ((LaneConfig "$Work\inbox" "$Work\outbox" "$Work\state" 30) | ConvertTo-Json -Depth 8), $utf8)
-[IO.File]::WriteAllText($smokeCfg, ((LaneConfig "$Work\smoke\inbox" "$Work\smoke\outbox" "$Work\state" 1) | ConvertTo-Json -Depth 8), $utf8)
+# every run gets its own dated result folder: nothing is overwritten, nothing to name by hand
+$Run = Join-Path (Join-Path $Work "runs") $Stamp
+New-Item -ItemType Directory -Force "$Work\inbox","$Run\outbox","$Work\state","$Work\smoke\inbox","$Run\smoke-outbox" | Out-Null
+$mainCfg = Join-Path $Run "nc2.lane.json"; $smokeCfg = Join-Path $Run "nc2.smoke.json"
+[IO.File]::WriteAllText($mainCfg, ((LaneConfig "$Work\inbox" "$Run\outbox" "$Work\state" 30) | ConvertTo-Json -Depth 8), $utf8)
+[IO.File]::WriteAllText($smokeCfg, ((LaneConfig "$Work\smoke\inbox" "$Run\smoke-outbox" "$Work\state" 1) | ConvertTo-Json -Depth 8), $utf8)
 Ok "codex_cmd: $($wrapped -join ' ')"
 Ok $mainCfg
 if ($DryRun) { Write-Host "`nDry run: stopped before the smoke run." -ForegroundColor Yellow; exit 0 }
@@ -116,13 +145,12 @@ if ($DryRun) { Write-Host "`nDry run: stopped before the smoke run." -Foreground
 if (-not $SkipSmoke) {
   Step 5 "smoke run through NightCoder (1-2 min)"
   Get-ChildItem "$Work\smoke\inbox" -File -ErrorAction SilentlyContinue | Remove-Item -Force
-  Get-ChildItem "$Work\smoke\outbox" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
   Copy-Item "$Lane\nightcoder_specs\smoke\rra-smoke.md" "$Work\smoke\inbox\000-rra-smoke.md"
   Write-Host "  NightCoder asks its start questions now (same state folder as the real run, so --yes can reuse them)." -ForegroundColor Yellow
   & $SysPython $NightCoder --config $smokeCfg --stop-at ((Get-Date).AddMinutes(20).ToString("HH:mm"))
-  $patches = Get-ChildItem "$Work\smoke\outbox" -Recurse -Filter *.patch -ErrorAction SilentlyContinue
+  $patches = Get-ChildItem "$Run\smoke-outbox" -Recurse -Filter *.patch -ErrorAction SilentlyContinue
   if (-not $patches) {
-    $report = Get-ChildItem "$Work\smoke\outbox" -Recurse -Filter REPORT.md -ErrorAction SilentlyContinue | Select-Object -First 1
+    $report = Get-ChildItem "$Run\smoke-outbox" -Recurse -Filter REPORT.md -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($report) { Write-Host "---- smoke REPORT (last 25 lines) ----"; Get-Content $report.FullName -Encoding UTF8 -Tail 25 }
     if (Test-Path $wrapLog) { Write-Host "---- wrap.log (last 3) ----"; Get-Content $wrapLog -Tail 3 }
     $hint = "send the REPORT and wrap.log lines above to Claude (wrap.log shows the coder exit code and whether anything changed)"
@@ -160,6 +188,7 @@ if ($ScreenOff -and $IsWindows -ne $false) {
   Start-Job { Start-Sleep 30; (Add-Type '[DllImport("user32.dll")]public static extern int SendMessage(int hWnd,int hMsg,int wParam,int lParam);' -Name ScreenOff -Namespace Win32 -PassThru)::SendMessage(-1,0x0112,0xF170,2) } | Out-Null
   Write-Host "  display turns off in 30 seconds"
 }
-if ($NoStart) { Write-Host "`n-NoStart: queue ready, NightCoder not started." -ForegroundColor Yellow; exit 0 }
-Write-Host "  results: $Work\outbox   (keep this window open)" -ForegroundColor Green
+if ($NoStart) { Set-Content -Path (Join-Path $Work "LATEST.txt") -Value $Run -Encoding UTF8; Write-Host "`n-NoStart: queue ready, NightCoder not started. Run folder: $Run" -ForegroundColor Yellow; exit 0 }
+Set-Content -Path (Join-Path $Work "LATEST.txt") -Value $Run -Encoding UTF8
+Write-Host "  results: $Run\outbox   (also written to $Work\LATEST.txt; keep this window open)" -ForegroundColor Green
 & $SysPython $NightCoder --config $mainCfg --yes --stop-at $StopAt
