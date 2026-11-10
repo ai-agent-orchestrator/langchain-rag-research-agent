@@ -10,7 +10,7 @@ from rag_research_agent.core.types import Segment
 ABBREVIATIONS = ("u.s.", "u.k.", "e.g.", "i.e.", "dr.", "mr.", "mrs.", "ms.", "inc.", "ltd.", "etc.")
 _OPEN = {"(": ")", "[": "]", "{": "}", "“": "”", "‘": "’", '"': '"'}
 _PUNCT = ".!?。！？"
-_BULLET = re.compile(r"\s*(?:[-•]\s+|\d+\.\s+)")
+_BULLET = re.compile(r"\s*(?:[-•]\s+|\d{1,3}\.\s+(?!\d{1,2}\.))")   # "1. item", not "2026. 11. 9."
 
 
 def _dot_inside(text, index):
