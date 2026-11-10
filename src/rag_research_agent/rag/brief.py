@@ -50,6 +50,17 @@ class Parts:
     checker: object = field(default_factory=NumberIdOutputChecker)
 
     @classmethod
+    def with_guard(cls, **overrides):
+        """Opt into the installed canonical guard; keep legacy fake only when unavailable."""
+        if "input_policy" not in overrides:
+            from rag_research_agent.guard.intake_guard_adapter import IntakeInputPolicy, IntakeGuardUnavailable
+            try:
+                overrides["input_policy"] = IntakeInputPolicy()
+            except IntakeGuardUnavailable:
+                overrides["input_policy"] = FakeInputPolicy()
+        return cls(**overrides)
+
+    @classmethod
     def with_defaults_v1(cls, **overrides):
         """Opt into adjacent causal pairs; legacy construction keeps FakeLinkBuilder."""
         overrides.setdefault("link_builder", RuleLinkBuilder())
