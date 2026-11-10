@@ -4,6 +4,21 @@
 
 [English README](README.md) · [설계 정본](docs/DESIGN.ko.md) · [설계 검수 보고서](docs/DESIGN_REVIEW.ko.md) · [공부 가이드 (다크 PDF)](docs/EQUALIZER_STUDY_DARK.pdf)
 
+## 설계 변경 (2026-11-10): 제어 흐름을 LangGraph 레일로
+
+> **유사도 검색과 골든 룰이 아무리 정밀해도, 그 통로가 단방향 LCEL이나 고정된 ReAct 에이전트면 2~3회 재검색이나 예외 처리에서 흐름이 꼬이고 토큰 비용이 통제되지 않습니다. 부품이 아니라 통로의 구조 문제입니다.**
+
+```text
+START → classify ──research──→ [ RAG 노드: 검색 → 근거 판정 → 답변 ] ──route_by_cost_and_health──→ finish → END
+           │                                  ├──retry (일시 장애, 최대 3회)──→ RAG 노드
+           └──smalltalk──→ finish             └──kill (반복 한도 / 비용 한도 / 노드 오류)──→ END
+```
+
+- **RAG 부품은 그대로** 두고, LangGraph의 독립 노드 하나로 넣었습니다.
+- **재시도·분기·중단·비용 한도는 엣지와 State가 결정합니다.** 경로 판단은 순수 Python이고, 횟수와 비용은 State에 쌓입니다.
+- 설계 정본에 결정 **D13**, 원칙 **P1**로 반영했습니다([설계 정본](docs/DESIGN.ko.md)). 코드: `rag/guardrail_graph.py`. 자세한 내용: [아래](#langgraph-가드레일-2026-11-10-추가), [docs/LANGGRAPH_GUARDRAIL.ko.md](docs/LANGGRAPH_GUARDRAIL.ko.md).
+- 아직 레일 밖: E2 재검색 루프는 자체 재시도 예산으로 돕니다(다음 단계).
+
 > **상태: 설계 v1.0 확정(결정 D1~D7 확정, 2026-11-09), 구현 전.** 정본은 [docs/DESIGN.ko.md](docs/DESIGN.ko.md)입니다. 최상위 원칙 P0: 모든 기능은 분리 가능한 모듈로 만듭니다. 저장소 이름은 `python-memvid-guardrail`에서 `langchain-rag-research-agent`로 변경했고(옛 주소는 자동 연결), 이전의 하이브리드(Spring Boot + FastAPI + memvid) 내용은 [spring-fastapi-async-refactor/docs/hybrid](https://github.com/ai-agent-orchestrator/spring-fastapi-async-refactor/tree/main/docs/hybrid)로 옮겼습니다.
 > 현재 있는 것: E5 + memvid 검색 평가(합성 자료로 **실측**), 패키지 뼈대, 긴 프롬프트 브리프 시제품(가짜 임베더). **Edge Equalizer 자체는 설계 단계이며 구현 전이고, 실제 Llama·Qwen으로 요약 품질을 잰 결과는 아직 없습니다.** 아래 모든 숫자에 *실측*, *시제품*, *예시* 중 하나를 표시했습니다.
 
