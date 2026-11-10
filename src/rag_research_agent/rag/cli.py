@@ -46,6 +46,8 @@ def _parser():
     score.add_argument("--packs", nargs="*", default=[])
     score.add_argument("--focus", nargs="*", default=[])
     sub.add_parser("profiles")
+    check = sub.add_parser("check")
+    check.add_argument("files", nargs="*")
     return ap
 
 
@@ -157,6 +159,9 @@ def main(argv=None):
             _focus(args.focus)
             return score.main(["--set", args.set, "--packs", *args.packs, "--focus", *args.focus,
                                "--runs", ".runs"])
+        if args.command == "check":
+            from rag_research_agent.rag import lint
+            return lint.main(args.files)
         for name in list_profiles():
             data = json.loads((PROFILES_DIR / f"{name}.json").read_text(encoding="utf-8"))
             print(f"{name}\t{data.get('label', name)}")
