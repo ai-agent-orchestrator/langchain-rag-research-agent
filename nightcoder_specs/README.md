@@ -34,3 +34,17 @@ powershell -ExecutionPolicy Bypass -File C:\myLectureWs\python-memvid-guardrail\
 ## 아침에 볼 것
 
 `outbox/<task>/REPORT.md` 3개(또는 끝난 것까지) → 패치 적용 후 시험 → PR. 실패한 명세는 `nc2/failed/<task>`.
+
+## 2026-11-10 백로그 (Codex 레인, 번호 순)
+
+| 순서 | 파일 | 내용 |
+| --- | --- | --- |
+| 1~3 | `rra-p1`, `rra-p3`, `rra-p2` | 명령줄·입력, 검사기, LangGraph |
+| 4~7 | `codex/rra-c1` ~ `c4` | 인과 쌍, 골든셋 도구, 문장 분할, 의미 관련도 |
+| 8 | `codex/rra-c5-store-stability` | 저장소 쓰기 재시도 + 반복 시험 스크립트 |
+| 9 | `codex/rra-c6-library-incremental` | 서재 증분 추가·삭제 |
+| 10 | `codex/rra-c7-number-table` | 수치 추출표 |
+| 11 | `codex/rra-c8-wire-links-relevance` | C1·C4를 조립에 연결 (전제 없으면 멈춤) |
+| 12 | `codex/rra-c9-board-diff` | 필터 차이 보드 + 실행 추이 |
+| 13 | `codex/rra-c10-prediction-log` | 예측 기록장 뼈대 |
+| 14 | `codex/rra-c11-cue-suggester` | 신호 표현 추천 도우미 |
