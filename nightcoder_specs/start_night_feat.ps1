@@ -128,6 +128,10 @@ function LaneConfig($inbox, $outbox, $state, $maxTasks) {
   $c.inbox = ($inbox -replace '\\','/'); $c.outbox = ($outbox -replace '\\','/'); $c.state_dir = ($state -replace '\\','/')
   $c.test_cmd = @(($Python -replace '\\','/'), "-m", "pytest", "-q", "-p", "no:cacheprovider", "-m", "not memvid")
   $c.codex_cmd = $wrapped; $c.max_tasks = $maxTasks
+  # Codex cannot run Python inside its sandbox, so the first attempt often misses a failing test; allow two fix rounds
+  $c | Add-Member -Force NoteProperty fix_rounds 2
+  # independent specs: a failure is saved and the queue continues (stop_at, cooldown and safety stops still stop)
+  $c | Add-Member -Force NoteProperty continue_after_failure $true
   if ($c.PSObject.Properties.Name -contains "codex_timeout_min") { $c.codex_timeout_min = 90 }
   return $c
 }
