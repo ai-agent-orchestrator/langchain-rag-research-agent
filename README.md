@@ -1,9 +1,5 @@
 # langchain-rag-research-agent
 
-**A reusable search and brief-building module: hybrid retrieval, an edge-preserving "equalizer", and a LangGraph pipeline that keeps an author's original ideas intact when a long draft is shrunk for a small local model.**
-
-[한국어 README](README.ko.md) · [Design (ko)](docs/DESIGN.ko.md) · [Design review](docs/DESIGN_REVIEW.ko.md) · [Study guide (dark PDF)](docs/EQUALIZER_STUDY_DARK.pdf)
-
 ## Design change, 2026-11-10: control flow moves onto LangGraph rails
 
 > **However precise the similarity search and golden rules are, a one-way LCEL chain or a fixed ReAct agent tangles the moment a research run needs 2–3 re-searches or error handling, and its token cost runs away. That is a problem of the path, not of the parts.**
@@ -19,8 +15,9 @@ START → classify ──research──→ [ RAG node: search → evidence gate 
 - New design decision **D13** and principle **P1** in [the design doc](docs/DESIGN.ko.md). Code: `rag/guardrail_graph.py`. Details: [below](#langgraph-guardrail-added-2026-11-10) and [docs/LANGGRAPH_GUARDRAIL.ko.md](docs/LANGGRAPH_GUARDRAIL.ko.md).
 - Not yet inside the rail: the E2 re-search loop still has its own retry budget (next step).
 
-> **Status: design v1.0 confirmed (decisions D1–D7 settled, 2026-11-09); implementation not started.** The authoritative design is [docs/DESIGN.ko.md](docs/DESIGN.ko.md) (Korean). Design principle P0: every feature is built as a separable module. This repository was formerly named `python-memvid-guardrail` (old URLs redirect); its former hybrid (Spring Boot + FastAPI + memvid) content now lives in [spring-fastapi-async-refactor/docs/hybrid](https://github.com/ai-agent-orchestrator/spring-fastapi-async-refactor/tree/main/docs/hybrid).
-> What exists today: an E5 + memvid retrieval evaluation (measured on synthetic data), a package skeleton, and a long-prompt brief prototype (fake embedder). **The Edge Equalizer itself is a design, not yet an implementation, and no real Llama or Qwen summarization quality has been measured.** Every number below is labelled *measured*, *prototype* or *example*.
+**A reusable search and brief-building module: hybrid retrieval, an edge-preserving "equalizer", and a LangGraph pipeline that keeps an author's original ideas intact when a long draft is shrunk for a small local model.**
+
+[한국어 README](README.ko.md) · [Design (ko)](docs/DESIGN.ko.md) · [Design review](docs/DESIGN_REVIEW.ko.md) · [Study guide (dark PDF)](docs/EQUALIZER_STUDY_DARK.pdf)
 
 ![Architecture overview](docs/diagrams/01-architecture-overview.en.png)
 
