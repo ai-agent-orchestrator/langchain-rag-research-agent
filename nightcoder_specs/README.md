@@ -55,3 +55,4 @@ powershell -ExecutionPolicy Bypass -File C:\myLectureWs\python-memvid-guardrail\
 | 19 | `codex/rra-c16-guard-adapter-research` | 리서치 저장소에 보안 패키지 연결 (M3, C15 전제) |
 
 대표가 직접 할 단계: 모델 내려받기(`scripts/prepare_models.py`, C12 뒤), Kiwi 설치(`pip install -e .[kiwi]`, C14 뒤).
+| 20 | `codex/rra-c17-golden-v2-tooling` | 검색 골든셋 v2 도구(등급·근거 구절·유형별·신뢰구간·끝-끝 평가) |

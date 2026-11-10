@@ -13,6 +13,7 @@ data/*
 !data/golden_rules/
 !data/equalizer/
 !data/golden_sets/
+!data/golden_retrieval/
 *.mv2
 *.mv2.*
 *.npy
