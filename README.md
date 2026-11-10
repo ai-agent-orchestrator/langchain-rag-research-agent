@@ -56,7 +56,9 @@ LangGraph nodes: `Guard_Input → Chunk_Ingest → Retrieve / Protected_Pick →
 
 ## LangGraph guardrail (added 2026-11-10)
 
-The RAG pipeline now runs inside an outer LangGraph `StateGraph` that controls the route, not the retrieval logic. The pipeline itself is unchanged and is one isolated node.
+However precise the similarity search and golden rules are, if they move through a one-way LCEL chain or a fixed ReAct agent, a research run with 2-3 re-searches and error handling gets tangled and its token cost is uncontrolled. **Control flow now lives on LangGraph rails as a design principle** (design doc D13, P1).
+
+The RAG pipeline is unchanged and runs as one isolated node inside an outer `StateGraph`. Retries, branches, stops and cost limits are decided by edges and state, not inside the pipeline.
 
 ```text
 START → classify ──research──→ rag ──route_by_cost_and_health──→ finish → END

@@ -56,7 +56,9 @@ LangGraph 노드: `Guard_Input → Chunk_Ingest → Retrieve / Protected_Pick �
 
 ## LangGraph 가드레일 (2026-11-10 추가)
 
-RAG 파이프라인을 바깥 LangGraph `StateGraph` 안의 독립 노드로 넣었습니다. 검색 로직은 그대로 두고, 경로(엣지)만 통제합니다.
+유사도 검색과 골든 룰이 아무리 정밀해도, 그 통로가 단방향 LCEL이나 고정된 ReAct 에이전트면 2~3회 재검색이나 예외 처리에서 흐름이 꼬이고 토큰 비용이 통제되지 않습니다. 그래서 **제어 흐름을 LangGraph 레일로 옮기는 것을 설계 원칙으로 정했습니다**(설계 정본 D13, P1).
+
+RAG 파이프라인은 고치지 않고 바깥 LangGraph `StateGraph` 안의 독립 노드로 넣었습니다. 재시도·분기·중단·비용 한도는 엣지와 State가 통제합니다.
 
 ```text
 START → classify ──research──→ rag ──route_by_cost_and_health──→ finish → END
