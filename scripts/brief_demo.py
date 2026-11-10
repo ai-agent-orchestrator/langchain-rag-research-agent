@@ -16,6 +16,8 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from rag_research_agent.core.types import Knobs  # noqa: E402
 from rag_research_agent.rag.brief import build_brief  # noqa: E402
+from rag_research_agent.compose.numbers import extract_numbers, to_markdown
+from rag_research_agent.ingest.sentences import SentenceChunker
 
 
 def keep_stats(trace, gset):
@@ -62,6 +64,8 @@ def main(argv=None) -> int:
     if t.diet_log:
         print("\n감량 기록:\n" + "\n".join(f"- {x}" for x in t.diet_log))
     print("\n백본에 들어갈 입력:\n" + (b.final_prompt_input or "(없음)"))
+    segments = [s for s in SentenceChunker().split(gset["draft"]) if s.segment_id in b.included_ids]
+    print("\n## 수치 추출표\n" + to_markdown(extract_numbers(segments, gset["draft"])))
     return 0
 
 

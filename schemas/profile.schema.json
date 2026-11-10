@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Equalizer profile (draft; semantic checks in rra check)",
+  "type": "object",
+  "required": ["ontology"],
+  "properties": {
+    "name": {"type": "string"},
+    "rules": {"type": "string"},
+    "packs": {"type": "array", "items": {"type": "string"}},
+    "focus": {"type": "object", "maxProperties": 5, "additionalProperties": {"type": "number", "exclusiveMinimum": 0}},
+    "knobs": {"type": "object", "additionalProperties": {"oneOf": [{"enum": ["Low", "Mid", "High"]}, {"type": "number", "minimum": 0, "maximum": 1}]}},
+    "ontology": {
+      "type": "object",
+      "properties": {
+        "classes": {"type": "array", "items": {"$ref": "#/$defs/class"}},
+        "diet_order": {"type": "array", "items": {"type": "string"}},
+        "never_remove": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  },
+  "$defs": {
+    "class": {"type": "object", "required": ["name"], "properties": {
+      "name": {"type": "string", "minLength": 1},
+      "cues": {"type": "array", "items": {"type": "string"}},
+      "patterns": {"type": "array", "items": {"type": "string", "format": "regex"}}
+    }}
+  }
+}

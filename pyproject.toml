@@ -10,7 +10,12 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = ["pydantic>=2"]
 
+[project.scripts]
+rra = "rag_research_agent.rag.cli:main"
+
 [project.optional-dependencies]
+pdf = ["pypdf"]
+docx = ["python-docx"]
 memvid = ["memvid-sdk==2.0.160"]
 chroma = ["chromadb>=1.0"]
 e5 = ["sentence-transformers"]
