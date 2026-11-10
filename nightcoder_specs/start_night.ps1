@@ -107,7 +107,7 @@ function LaneConfig($inbox, $outbox, $state, $maxTasks) {
 New-Item -ItemType Directory -Force "$Work\inbox","$Work\outbox","$Work\state","$Work\smoke\inbox","$Work\smoke\outbox","$Work\smoke\state" | Out-Null
 $mainCfg = Join-Path $Work "nc2.lane.json"; $smokeCfg = Join-Path $Work "nc2.smoke.json"
 [IO.File]::WriteAllText($mainCfg, ((LaneConfig "$Work\inbox" "$Work\outbox" "$Work\state" 30) | ConvertTo-Json -Depth 8), $utf8)
-[IO.File]::WriteAllText($smokeCfg, ((LaneConfig "$Work\smoke\inbox" "$Work\smoke\outbox" "$Work\smoke\state" 1) | ConvertTo-Json -Depth 8), $utf8)
+[IO.File]::WriteAllText($smokeCfg, ((LaneConfig "$Work\smoke\inbox" "$Work\smoke\outbox" "$Work\state" 1) | ConvertTo-Json -Depth 8), $utf8)
 Ok "codex_cmd: $($wrapped -join ' ')"
 Ok $mainCfg
 if ($DryRun) { Write-Host "`nDry run: stopped before the smoke run." -ForegroundColor Yellow; exit 0 }
@@ -117,7 +117,7 @@ if (-not $SkipSmoke) {
   Get-ChildItem "$Work\smoke\inbox" -File -ErrorAction SilentlyContinue | Remove-Item -Force
   Get-ChildItem "$Work\smoke\outbox" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
   Copy-Item "$Lane\nightcoder_specs\smoke\rra-smoke.md" "$Work\smoke\inbox\000-rra-smoke.md"
-  Write-Host "  NightCoder asks its start questions now; your answers are remembered for the real run." -ForegroundColor Yellow
+  Write-Host "  NightCoder asks its start questions now (same state folder as the real run, so --yes can reuse them)." -ForegroundColor Yellow
   & $SysPython $NightCoder --config $smokeCfg --stop-at ((Get-Date).AddMinutes(20).ToString("HH:mm"))
   $patches = Get-ChildItem "$Work\smoke\outbox" -Recurse -Filter *.patch -ErrorAction SilentlyContinue
   if (-not $patches) {
@@ -132,6 +132,7 @@ if (-not $SkipSmoke) {
 }
 
 Step 6 "queue"
+$Only = @($Only | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })   # "-Only a,b" arrives as one string via -File
 Get-ChildItem "$Work\inbox" -File -Filter *.md -ErrorAction SilentlyContinue | Remove-Item -Force
 $n = 0
 foreach ($name in $Order) {
