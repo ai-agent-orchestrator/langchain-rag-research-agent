@@ -52,6 +52,10 @@ VectorStore Protocol에는 검색/close만 있고 버전 발행·rollback은 들
 
 추가 공용 경유점: `src/rag_research_agent/store/retry.py`는 memvid 어댑터와 Chroma가 함께 사용하는 IO 재시도 코드이며 SDK import는 없다. 공개 계약 retry_io/transient_write_error에 영향을 주는 정책 변경은 하지 않았다.
 
+후속 진단에서 추가한 `tests/test_memvid_diagnostics_followup.py`는 진단 harness에 fake SDK를 주입하는 신규 시험이며 개발 앱 경로나 memvid SDK를 요구하지 않는다. 기존 marker/시험은 변경하지 않았다.
+
+후속 환경 관찰: 초기 import 감사의 chromadb 미설치 관찰은 그 시점의 스냅샷이다. X0 확장 진단 이후 전체 시험에서는 Chroma가 사용 가능해졌고 `260 passed, 0 failed, 0 error, 1 skipped`였다. 본 작업에서 설치 명령은 실행하지 않았다. 상세 환경 혼입 한계는 X0 후속 보고서에 기록한다. 기존의 생명주기 기능 부재는 그대로다.
+
 ## 텍스트 참조 전체 부록
 
 아래는 조사 시점 검색에 잡힌 각 파일의 (a) 기본 경로, (b) 계약, (c) Chroma 대응이다. 직접 의존 표와 중복되는 항목은 그 표를 따른다. 문서 참조는 실행 의존이 아니다.
