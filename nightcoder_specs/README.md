@@ -18,7 +18,11 @@ powershell -ExecutionPolicy Bypass -File C:\work\rra-codex\nightcoder_specs\star
 
 순서와 멈춤 지점: ① 레인 폴더·브랜치(최신 main 위로 자동 정렬)·깨끗함 → ② 전체 시험(한 번 재시도) → ③ Codex CLI 옵션 자동 판별(`--full-auto` 없으면 `--sandbox workspace-write`) → ④ 설정 파일 생성(기존 `nc2.refactor.json`의 `codex_cmd`를 바탕으로) → ⑤ **스모크 실행**: 파일 하나 고치고 커밋하는 1~2분짜리 명세를 NightCoder로 실제로 돌려 패치가 나와야 통과 → ⑥ 백로그 순서로 큐 구성(main에 보고서가 이미 있는 명세는 건너뜀) → ⑦ `--yes`로 시작. 어느 단계든 실패하면 원인과 고치는 법을 한 줄로 보여 주고 멈춘다.
 
-옵션: `-DryRun`(④까지), `-SkipSmoke`, `-Only "rra-c5*","rra-c6*"`, `-StopAt 07:30`, `-Sandbox full-auto|workspace-write`.
+옵션: `-DryRun`(④까지), `-SkipSmoke`, `-Only "rra-c5*,rra-c6*"`, `-StopAt 07:30`, `-Sandbox full-auto|workspace-write`, `-NoStart`(큐까지만).
+
+**커밋 보장(v3):** Codex는 `codex_wrap.py`를 거쳐 실행된다. Codex가 파일을 고쳤는데 커밋하지 않았으면(어제의 `NO_COMMIT`) 래퍼가 그 변경을 커밋한다. 범위·비밀·시험 게이트는 NightCoder가 그대로 판정한다. 실행마다 `wrap.log`에 종료 코드와 커밋 여부가 한 줄씩 남는다.
+
+**리허설(2026-11-10, 클라우드):** PowerShell 7 + 가짜 NightCoder + 커밋하지 않는 가짜 Codex로 ①~⑦을 끝까지 실행: 옵션 자동 판별(`--sandbox workspace-write`), 스모크 통과(래퍼 커밋), 명세 2개 큐 구성과 `--yes` 시작, 명세마다 패치 수집까지 확인. Windows PowerShell 5.1·실제 nc2·실제 Codex로는 아직 실행 전.
 
 ## 출발 전 점검 (수동으로 할 때, Windows PC, 10분)
 
