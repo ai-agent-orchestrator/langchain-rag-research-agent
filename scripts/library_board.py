@@ -17,6 +17,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from rag_research_agent.rag.library import Library, load_folder  # noqa: E402
+from rag_research_agent.compose.numbers import extract_numbers, to_markdown
+from rag_research_agent.core.types import Segment
 
 CSS = """:root{--bg:#0e141b;--card:#131c27;--line:#24324a;--text:#e6edf6;--muted:#9aabbd;--cyan:#78d5ef}
 body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 "Noto Sans KR","Malgun Gothic",sans-serif;padding:16px}
@@ -57,6 +59,9 @@ def render(lib: Library, query: str | None, profile: str | None, budget: int, k:
             parts.append(f"<section><div class='eyebrow'>EQUALIZER · {esc(profile)}</div><h2>브리프 ({esc(brief.status.value)} · 남긴 문장 {kept}/{len(trace.rows)})</h2>"
                          f"<pre>{esc(brief.final_prompt_input or '(없음)')}</pre>"
                          f"<p class='muted'>감량 기록: {esc('; '.join(trace.diet_log) or '-')}</p></section>")
+            numbers = [number for row in trace.rows if row.get("kept")
+                       for number in extract_numbers([Segment(row["id"], "draft", 0, len(row["text"]))], row["text"])]
+            parts.append(f"<section><h2>수치 추출표</h2><div class='scroll'><pre>{esc(to_markdown(numbers))}</pre></div></section>")
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     return (f"<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
             f"<title>Library Board</title><style>{CSS}</style></head><body><header><div class='eyebrow'>RESEARCH LIBRARY</div>"
