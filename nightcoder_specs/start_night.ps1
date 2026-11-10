@@ -33,6 +33,8 @@ param(
   [switch]$SkipSmoke,
   [switch]$ScreenOff,
   [switch]$NoStart,
+  [switch]$Supervise,
+  [int]$MaxRestarts = 12,
   [switch]$Relaunched
 )
 $SelfPath = $PSCommandPath
@@ -84,10 +86,13 @@ if (-not $Relaunched -and $SelfPath -and (Test-Path $SelfPath)) {
       elseif ($v -is [array]) { $argsList += "-$k"; $argsList += ($v -join ",") }
       else { $argsList += "-$k"; $argsList += "$v" }
     }
+    if ($args.Count -gt 0) { $argsList += $args }   # options this older copy did not know (added in newer versions)
     & $hostExe @argsList
     exit $LASTEXITCODE
   }
 }
+# reaching here means no self-update restart: leftover arguments are typos, not newer options
+if ($args.Count -gt 0) { Fail "unknown option(s): $($args -join ' ')" "check the spelling; options are listed at the top of start_night.ps1" }
 Ok ("$Branch = " + (git log --oneline -1))
 
 Step 2 "test baseline"
@@ -191,4 +196,28 @@ if ($ScreenOff -and $IsWindows -ne $false) {
 if ($NoStart) { Set-Content -Path (Join-Path $Work "LATEST.txt") -Value $Run -Encoding UTF8; Write-Host "`n-NoStart: queue ready, NightCoder not started. Run folder: $Run" -ForegroundColor Yellow; exit 0 }
 Set-Content -Path (Join-Path $Work "LATEST.txt") -Value $Run -Encoding UTF8
 Write-Host "  results: $Run\outbox   (also written to $Work\LATEST.txt; keep this window open)" -ForegroundColor Green
-& $SysPython $NightCoder --config $mainCfg --yes --stop-at $StopAt
+$summarize = Join-Path $Lane "nightcoder_specs\summarize_run.py"
+$supLog = Join-Path $Run "supervise.log"
+function Log($m) { $line = (Get-Date -Format "yyyy-MM-dd HH:mm") + "  " + $m; Add-Content -Path $supLog -Value $line -Encoding UTF8; Write-Host $line }
+function Summarize { & $SysPython $summarize --run $Run --lane $Lane --work $Work | Out-Null; Write-Host "  summary: $Run\SUMMARY.html" -ForegroundColor Green }
+# stop time as a DateTime (HH:mm = next occurrence; or full ISO date-time)
+$stopTime = if ($StopAt -match '^\d{1,2}:\d{2}$') { $t = [datetime]::ParseExact($StopAt, "H:mm", $null); if ($t -le (Get-Date)) { $t.AddDays(1) } else { $t } } else { [datetime]::Parse($StopAt) }
+Log "start: $n spec(s), stop at $($stopTime.ToString('yyyy-MM-dd HH:mm')), supervise=$($Supervise.IsPresent)"
+$restarts = 0
+while ($true) {
+  $t0 = Get-Date
+  & $SysPython $NightCoder --config $mainCfg --yes --stop-at $StopAt
+  $rc = $LASTEXITCODE
+  $left = @(Get-ChildItem "$Work\inbox" -File -Filter *.md -ErrorAction SilentlyContinue)
+  Log "NightCoder exited rc=$rc after $([int]((Get-Date) - $t0).TotalMinutes) min; $($left.Count) spec(s) left in the inbox"
+  Summarize
+  if (-not $Supervise) { break }
+  if ($left.Count -eq 0) { Log "queue empty: done"; break }
+  if ((Get-Date) -ge $stopTime.AddMinutes(-20)) { Log "stop time reached: done"; break }
+  if ($restarts -ge $MaxRestarts) { Log "restart limit $MaxRestarts reached: done"; break }
+  if (((Get-Date) - $t0).TotalMinutes -lt 2 -and $restarts -gt 0) { Log "NightCoder stopped again within 2 minutes (likely needs fresh start answers or usage reset): done"; break }
+  $restarts++
+  Log "restart $restarts/$MaxRestarts with the remaining specs (a failed spec is not retried)"
+  Start-Sleep -Seconds 30
+}
+Summarize

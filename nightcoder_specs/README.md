@@ -8,15 +8,23 @@
 | `rra-p3-lint.md` | 프로필·골든룰 검사기 `rra check` | 2 |
 | `rra-p2-graph.md` | LangGraph 어댑터 + 로컬 기록 | 3 |
 
-## 시작: 명령 한 줄 (v2, 2026-11-10)
+## 시작: 명령 한 줄 (v5, 2026-11-10)
 
+**평일 밤 (매일 같은 명령):**
 ```powershell
-powershell -ExecutionPolicy Bypass -File C:\work\rra-codex\nightcoder_specs\start_night.ps1 -ScreenOff
+powershell -ExecutionPolicy Bypass -File C:\work\rra-codex\nightcoder_specs\start_night.ps1 -Supervise -ScreenOff
 ```
 
-처음 한 번은 레인 폴더가 없으면 스크립트가 직접 만든다(그 경우엔 저장소에서 스크립트를 먼저 받아 실행: `git clone https://github.com/ai-agent-orchestrator/langchain-rag-research-agent C:\work\rra-codex`).
+**금요일 저녁 → 일요일 낮 (끝나는 시각만 붙임):**
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\work\rra-codex\nightcoder_specs\start_night.ps1 -Supervise -StopAt 2026-11-15T12:00 -ScreenOff
+```
 
-순서와 멈춤 지점: ① 레인 폴더·브랜치(최신 main 위로 자동 정렬)·깨끗함 → ② 전체 시험(한 번 재시도) → ③ Codex CLI 옵션 자동 판별(`--full-auto` 없으면 `--sandbox workspace-write`) → ④ 설정 파일 생성(기존 `nc2.refactor.json`의 `codex_cmd`를 바탕으로) → ⑤ **스모크 실행**: 파일 하나 고치고 커밋하는 1~2분짜리 명세를 NightCoder로 실제로 돌려 패치가 나와야 통과 → ⑥ 백로그 순서로 큐 구성(main에 보고서가 이미 있는 명세는 건너뜀) → ⑦ `--yes`로 시작. 어느 단계든 실패하면 원인과 고치는 법을 한 줄로 보여 주고 멈춘다.
+**확인:** `C:\Users\Codelab\nc2-rra-codex\LATEST.txt`에 적힌 폴더의 `SUMMARY.html` 한 장(명세별 성공·실패, 커밋, 시험 개수, 감시 기록).
+
+**감시 모드(`-Supervise`):** NightCoder는 명세 하나가 실패하면 큐를 멈춘다. 감시 모드는 남은 명세가 있고 끝나는 시각 전이면 NightCoder를 다시 시작한다(실패한 명세는 다시 하지 않음, 최대 12회). 다시 시작하자마자 2분 안에 또 멈추면(시작 답변 24시간 만료, 사용량 소진 등) 억지로 반복하지 않고 끝낸다. 실행마다 `SUMMARY.html`을 갱신한다. **제약:** NightCoder의 안전장치상 시작 답변은 24시간 뒤 만료되므로, 금요일 저녁 시작이면 토요일 저녁 이후의 재시작은 되지 않는다(계속 돌고 있는 동안은 일요일까지 간다).
+
+**잘못 쓴 옵션은 멈춘다:** 예) `-Superviseee` → `STOP: unknown option(s)`.
 
 옵션: `-DryRun`(④까지), `-SkipSmoke`, `-Only "rra-c5*,rra-c6*"`, `-StopAt 07:30`, `-Sandbox full-auto|workspace-write`, `-NoStart`(큐까지만).
 
