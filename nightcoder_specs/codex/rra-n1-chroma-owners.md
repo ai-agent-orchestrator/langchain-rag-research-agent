@@ -2,6 +2,9 @@ files: src/rag_research_agent/store/chroma_store.py, src/rag_research_agent/rag/
 forbid: src/rag_research_agent/store/memvid_store.py, src/rag_research_agent/store/retry.py, src/rag_research_agent/observe/tracing.py, data/**, profiles/**, .env*
 effort: medium
 coder: codex
+status: ready
+order: 10
+repo: research
 
 # N1: Chroma 클라이언트 소유권 정리 (남은 WinError 32 경고 줄이기)
 

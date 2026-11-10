@@ -158,19 +158,22 @@ if (-not $SkipSmoke) {
   git -C $Lane checkout -B $Branch origin/$BaseBranch --quiet   # drop the smoke commit
 }
 
+function HeaderValue([string[]]$lines, [string]$key) {
+  foreach ($l in $lines) { if ($l -match ('^\s*' + $key + '\s*:\s*(.*)$')) { return ([string]$Matches[1]).Trim() } }
+  return ""
+}
 Step 6 "queue"
 $Only = @($Only | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })   # "-Only a,b" arrives as one string via -File
 Get-ChildItem "$Work\inbox" -File -Filter *.md -ErrorAction SilentlyContinue | Remove-Item -Force
 $repoName = Split-Path $Lane -Leaf
 $cands = @()
 foreach ($f in (Get-ChildItem "$Lane\nightcoder_specs" -Recurse -File -Filter *.md | Where-Object { $_.FullName -notmatch '\\smoke\\' -and $_.Name -ne 'README.md' })) {
-  $head = Get-Content $f.FullName -Encoding UTF8 -TotalCount 15
-  $status = ($head | Where-Object { $_ -match '^\s*status\s*:' } | Select-Object -First 1) -replace '^\s*status\s*:\s*','' 
-  if ($status.Trim() -ne 'ready') { continue }
-  $repoHdr = ($head | Where-Object { $_ -match '^\s*repo\s*:' } | Select-Object -First 1) -replace '^\s*repo\s*:\s*',''
-  if ($repoHdr -and $repoHdr.Trim() -ne 'research') { Write-Host "  skip (repo: $($repoHdr.Trim())) $($f.Name)"; continue }
-  $ord = ($head | Where-Object { $_ -match '^\s*order\s*:' } | Select-Object -First 1) -replace '^\s*order\s*:\s*',''
-  $tmp = 0; $ordN = if ([int]::TryParse(([string]$ord).Trim(), [ref]$tmp)) { $tmp } else { 9999 }
+  $head = @(Get-Content $f.FullName -Encoding UTF8 -TotalCount 15)
+  $status = HeaderValue $head 'status'
+  if ($status -ne 'ready') { continue }   # no status / hold / done -> never queued
+  $repoHdr = HeaderValue $head 'repo'
+  if ($repoHdr -and $repoHdr -ne 'research') { Write-Host "  skip (repo: $repoHdr) $($f.Name)"; continue }
+  $tmp = 0; $ordN = if ([int]::TryParse((HeaderValue $head 'order'), [ref]$tmp)) { $tmp } else { 9999 }
   $cands += [pscustomobject]@{ File = $f; Order = $ordN }
 }
 $n = 0

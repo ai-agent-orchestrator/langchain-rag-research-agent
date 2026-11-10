@@ -2,6 +2,9 @@ files: src/rag_research_agent/lab/learning_summary.py, scripts/summarize_learnin
 forbid: src/rag_research_agent/observe/tracing.py, data/**, profiles/**, .env*
 effort: medium
 coder: codex
+status: ready
+order: 20
+repo: research
 
 # N2: E4~E8 실제 모델 결과 종합 도구 (판정 기준을 코드에 고정)
 
