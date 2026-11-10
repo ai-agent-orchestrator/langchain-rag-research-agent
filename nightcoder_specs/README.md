@@ -61,3 +61,7 @@ powershell -ExecutionPolicy Bypass -File C:\work\rra-codex\nightcoder_specs\star
 대표가 직접 할 단계: 모델 내려받기(`scripts/prepare_models.py`, C12 뒤), Kiwi 설치(`pip install -e .[kiwi]`, C14 뒤).
 | 20 | `codex/rra-c17-golden-v2-tooling` | 검색 골든셋 v2 도구(등급·근거 구절·유형별·신뢰구간·끝-끝 평가) |
 | 21 | `codex/rra-p2b-graph-stages` | P2 보류 해제: `brief.py` 단계 분리 허용 + LangGraph 어댑터 + 로컬 기록 |
+| 22 | `codex/rra-c15b-guard-mirror-legal` | **legal-intake**: 패키지 = 정본과 바이트 동일한 미러 + 동일성 시험 (C15 차단 해제) |
+| 23 | `codex/rra-e1-langchain-exits` | LangChain 출구: Retriever·Runnable·Tool·LCEL 체인 |
+| 24 | `codex/rra-e2-retry-loop` | 근거 부족 시 재검색 루프 (LangGraph, 규칙 기반, 최대 2회) |
+| 25 | `codex/rra-e3-langsmith-export` | 골든셋·결과를 LangSmith 형식으로 내보내기 (업로드는 대표 실행 시만) |
