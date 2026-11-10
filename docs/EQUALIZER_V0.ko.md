@@ -58,3 +58,14 @@
 ## 아직 아닌 것
 
 τ 보정, 실제 임베딩·리랭커, 분류기, 인과 링크 생성, LLM 백본 호출, LangGraph 그래프 연결(현재는 순수 Python 조립). 각각 위 표의 교체 지점에 끼운다.
+# 2026-11-10 부품 연결 추가
+
+| 부품 | 연결 상태 |
+| --- | --- |
+| C1 RuleLinkBuilder | `Parts.with_defaults_v1()` 또는 `Equalizer.brief(..., parts_preset="v1")`로 선택. 기존 기본 조합은 유지 |
+| C4 make_semantic_relevance | `Library.brief(..., relevance="semantic")`로 서재 임베더 사용. 기본 `overlap` 유지, τ 보정 전 |
+
+v1은 선택된 문장들의 감량에 인과 쌍 링크를 전달합니다. 관련도/상위 K 선택 전에
+탈락한 문장까지 자동 복구하는 기능은 없습니다. 의미 관련도는 외부 모델을 준비하지
+않으며 서재에 주입한 임베더를 그대로 사용합니다.
+

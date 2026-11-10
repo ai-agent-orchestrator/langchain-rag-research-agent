@@ -86,13 +86,16 @@ class Equalizer:
     def from_profile(cls, path_or_name: str | Path) -> "Equalizer":
         return cls(load_profile(path_or_name))
 
-    def parts(self, **overrides) -> Parts:
-        return Parts(rules=self.rules, config=self.config, labeler=self.profile.labeler, **overrides)
+    def parts(self, parts_preset="v0", **overrides) -> Parts:
+        if parts_preset not in ("v0", "v1"):
+            raise ValueError("parts_preset must be v0 or v1")
+        factory = Parts.with_defaults_v1 if parts_preset == "v1" else Parts
+        return factory(rules=self.rules, config=self.config, labeler=self.profile.labeler, **overrides)
 
     def brief(self, text: str, task: str | None = None, budget: int = 600, knobs: Knobs | None = None,
-              focus: dict[str, float] | None = None, **part_overrides):
+              focus: dict[str, float] | None = None, parts_preset="v0", **part_overrides):
         return build_brief(text, task, knobs, None if knobs else self.profile.name, budget, focus, None,
-                           self.parts(**part_overrides))
+                           self.parts(parts_preset, **part_overrides))
 
 
 def list_profiles(directory: str | Path = PROFILES_DIR) -> list[str]:

@@ -187,14 +187,19 @@ class Library:
 
     # ---- equalizer on top of retrieval
     def brief(self, query: str, profile: str = "research", k: int = 8, budget: int = 800, mode: str = "hybrid",
-              focus: dict[str, float] | None = None):
+              focus: dict[str, float] | None = None, relevance="overlap", parts_preset="v0"):
         """Retrieve k chunks, put them back in document order, and run the profile's Equalizer with the
         query as the task. Returns (brief, trace, hits)."""
         from rag_research_agent.rag.profile import Equalizer
+        from rag_research_agent.retrieve.semantic_relevance import make_semantic_relevance
+        if relevance not in ("overlap", "semantic"):
+            raise ValueError("relevance must be overlap or semantic")
         hits = self.search(query, k, mode)
         order = {c.chunk_id: i for i, c in enumerate(self.chunks)}
         draft = "\n\n".join(c.safe_text for c, _, _ in sorted(hits, key=lambda h: order[h[0].chunk_id]))
-        brief, trace = Equalizer.from_profile(profile).brief(draft, task=query, budget=budget, focus=focus)
+        overrides = {"relevance": make_semantic_relevance(self.embedder)} if relevance == "semantic" else {}
+        brief, trace = Equalizer.from_profile(profile).brief(draft, task=query, budget=budget, focus=focus,
+                                                           parts_preset=parts_preset, **overrides)
         return brief, trace, hits
 
 

@@ -20,6 +20,7 @@ from rag_research_agent.guard.protocols import FakeInputPolicy
 from rag_research_agent.ingest.sentences import SentenceChunker
 from rag_research_agent.knobs.mapper import EqualizerConfig, blend, load_config
 from rag_research_agent.ontology.protocols import FakeLabeler, FakeLinkBuilder
+from rag_research_agent.ontology.link_rules import RuleLinkBuilder
 
 ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_RULES = ROOT / "data/golden_rules/research_v1.json"
@@ -47,6 +48,12 @@ class Parts:
     dieter_factory: Callable[..., object] = ClassOrderDieter
     composer: object = field(default_factory=ExtractiveComposer)
     checker: object = field(default_factory=NumberIdOutputChecker)
+
+    @classmethod
+    def with_defaults_v1(cls, **overrides):
+        """Opt into adjacent causal pairs; legacy construction keeps FakeLinkBuilder."""
+        overrides.setdefault("link_builder", RuleLinkBuilder())
+        return cls(**overrides)
 
     def ready(self) -> "Parts":
         self.rules = self.rules or load_rules(DEFAULT_RULES)
@@ -87,7 +94,8 @@ def build_brief(draft: str, task: str | None = None, knobs: Knobs | None = None,
 
     labeler = p.labeler.with_text(draft) if hasattr(p.labeler, "with_text") else p.labeler
     segs: list[Segment] = labeler.label(p.chunker.split(draft, "draft"))
-    links = p.link_builder.build(segs)
+    link_builder = p.link_builder.with_text(draft) if hasattr(p.link_builder, "with_text") else p.link_builder
+    links = link_builder.build(segs)
     rel_of = p.relevance(task)
     scorer = p.scorer_factory(p.rules, draft, packs, focus=focus)
     edge = {e.segment_id: e for e in scorer.score(segs)}
