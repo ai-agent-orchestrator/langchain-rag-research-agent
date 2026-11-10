@@ -54,6 +54,24 @@ LangGraph nodes: `Guard_Input → Chunk_Ingest → Retrieve / Protected_Pick →
 - Token Diet removes unprotected segments in a fixed order. If only protected items exceed the budget it **stops with `BUDGET_PROTECTED_OVERFLOW`** instead of cutting.
 - No evidence means **zero generation calls**.
 
+## LangGraph guardrail (added 2026-11-10)
+
+The RAG pipeline now runs inside an outer LangGraph `StateGraph` that controls the route, not the retrieval logic. The pipeline itself is unchanged and is one isolated node.
+
+```text
+START → classify ──research──→ rag ──route_by_cost_and_health──→ finish → END
+           │                    ├──retry (transient failure)──→ rag
+           └──smalltalk──→ finish └──kill (loops / cost / node error)──→ kill → END
+```
+
+- **Gate 1, `classify`**: only "research" requests reach the RAG node. The default router is rule-based and sends nothing anywhere. `structured_router()` uses `with_structured_output(RouteDecision)` and only ever sees masked text.
+- **Main node, `rag`**: `GuidancePipeline.ainvoke` (search → evidence gate → DTO → answer), with its own input policy, masking and "no evidence = zero generation" rule.
+- **Gate 2, `route_by_cost_and_health`**: pure Python. It retries only transient failures (retrieval outage, worker capacity, inference timeout) up to `max_loops` (default 3), and kills the session on a node error or when estimated cost units exceed `max_cost` (default 15).
+- No tracing upload: every run is wrapped in `serving_trace_guard()`. The graph state holds counters and codes, never request text or exception messages.
+- HTTP mapping without a web framework (`rag/http_mapping.py`): retrieval outage → 503 `RETRIEVAL_UNAVAILABLE`, a guardrail stop on limits → 503 `GUARDRAIL_STOPPED`, a policy block stays a 200 answer.
+
+Code: `rag/guardrail_graph.py`. Design and usage: [docs/LANGGRAPH_GUARDRAIL.ko.md](docs/LANGGRAPH_GUARDRAIL.ko.md).
+
 ## Security and privacy
 
 - **Local by default**: embeddings, reranker and generator run on the device; external providers sit behind interfaces and are opt-in per run, and forbidden in the litigation preset.

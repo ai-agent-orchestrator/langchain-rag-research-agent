@@ -54,6 +54,24 @@ LangGraph 노드: `Guard_Input → Chunk_Ingest → Retrieve / Protected_Pick �
 - Token Diet는 보호되지 않은 구간을 정해진 순서로 제외합니다. 보호 항목만으로 예산을 넘으면 자르지 않고 **`BUDGET_PROTECTED_OVERFLOW`로 멈춥니다.**
 - 근거가 없으면 **생성 호출 0회**.
 
+## LangGraph 가드레일 (2026-11-10 추가)
+
+RAG 파이프라인을 바깥 LangGraph `StateGraph` 안의 독립 노드로 넣었습니다. 검색 로직은 그대로 두고, 경로(엣지)만 통제합니다.
+
+```text
+START → classify ──research──→ rag ──route_by_cost_and_health──→ finish → END
+           │                    ├──retry (일시 장애)──→ rag
+           └──smalltalk──→ finish └──kill (반복 한도 / 비용 / 노드 오류)──→ kill → END
+```
+
+- **제1관문 `classify`**: "research"로 분류된 요청만 RAG 노드로 보냅니다. 기본 라우터는 규칙 기반이라 어디로도 데이터를 보내지 않습니다. `structured_router()`는 `with_structured_output(RouteDecision)`을 쓰며, 마스킹된 텍스트만 봅니다.
+- **메인 노드 `rag`**: 기존 `GuidancePipeline.ainvoke`(검색 → 근거 판정 → DTO → answer). 입력 정책, 마스킹, "근거 없으면 생성 0회" 규칙이 그대로 적용됩니다.
+- **제2관문 `route_by_cost_and_health`**: 순수 Python입니다. 일시 장애(검색 장애, 작업 슬롯 부족, 추론 시간 초과)만 `max_loops`(기본 3)까지 다시 시도하고, 노드 오류나 추정 비용 단위가 `max_cost`(기본 15)를 넘으면 세션을 강제 종료합니다.
+- 원격 tracing 업로드 없음: 모든 실행을 `serving_trace_guard()`로 감쌉니다. 그래프 상태에는 횟수와 코드만 두고, 요청 원문이나 예외 메시지는 두지 않습니다.
+- 웹 프레임워크 없는 HTTP 매핑(`rag/http_mapping.py`): 검색 장애 → 503 `RETRIEVAL_UNAVAILABLE`, 한도로 인한 중단 → 503 `GUARDRAIL_STOPPED`, 정책 차단은 200 답변으로 유지합니다.
+
+코드: `rag/guardrail_graph.py`. 설계와 사용법: [docs/LANGGRAPH_GUARDRAIL.ko.md](docs/LANGGRAPH_GUARDRAIL.ko.md).
+
 ## 보안·개인정보
 
 - **기본은 로컬**: 임베딩·리랭커·생성 모델이 기기 안에서 돌고, 외부 공급자는 인터페이스 뒤에서 실행 단위로만 켜며 소송 프리셋에서는 금지합니다.
