@@ -14,6 +14,7 @@ from typing import Sequence
 
 from rag_research_agent.core.contracts import Chunk, RetrievalUnavailable
 from rag_research_agent.core.lexical import lex_terms
+from rag_research_agent.store.retry import retry_io
 
 
 def load_chroma():
@@ -45,15 +46,15 @@ def publish_chroma(chunks: Sequence[Chunk], vectors: Sequence[Sequence[float]], 
         raise ValueError("duplicate chunk_id")
     client = _client(path)
     try:
-        client.delete_collection(collection)
+        retry_io(lambda: client.delete_collection(collection))
     except Exception:
         pass
-    col = client.create_collection(collection, metadata={"hnsw:space": "cosine", "dimension": dimension})
+    col = retry_io(lambda: client.create_collection(collection, metadata={"hnsw:space": "cosine", "dimension": dimension}))
     for i in range(0, len(chunks), batch):
         part = chunks[i:i + batch]
-        col.add(ids=[c.chunk_id for c in part], embeddings=[list(map(float, v)) for v in vectors[i:i + batch]],
+        retry_io(lambda: col.add(ids=[c.chunk_id for c in part], embeddings=[list(map(float, v)) for v in vectors[i:i + batch]],
                 documents=[c.safe_text for c in part],
-                metadatas=[{"document_id": c.document_id, "content_hash": c.content_hash} for c in part])
+                metadatas=[{"document_id": c.document_id, "content_hash": c.content_hash} for c in part]))
     index = ChromaIndex(path, collection, chunks, dimension)
     index.verify()
     return index

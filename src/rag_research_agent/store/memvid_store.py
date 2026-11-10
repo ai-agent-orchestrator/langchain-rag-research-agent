@@ -22,6 +22,7 @@ from typing import Sequence
 
 from rag_research_agent.core.contracts import Chunk, IndexManifest, RetrievalUnavailable
 from rag_research_agent.core.lexical import lex_terms
+from rag_research_agent.store.retry import retry_io, transient_write_error
 
 POINTER = "active.json"
 PUT_BATCH = 8
@@ -69,7 +70,7 @@ def publish_index(chunks: Sequence[Chunk], vectors: Sequence[Sequence[float]], *
     chunker_versions = {c.chunker_version for c in chunks}
     if len(collections) != 1 or len(chunker_versions) != 1:
         raise ValueError("one index holds one collection and one chunker version")
-    index_dir.mkdir(parents=True, exist_ok=True)
+    retry_io(lambda: index_dir.mkdir(parents=True, exist_ok=True))
     mv2 = index_dir / f"{index_version}.mv2"
     meta = index_dir / f"{index_version}.manifest.json"
     if mv2.exists() or meta.exists():
@@ -80,16 +81,17 @@ def publish_index(chunks: Sequence[Chunk], vectors: Sequence[Sequence[float]], *
     identity = {"provider": "external", "model": embedding_model, "dimension": dimension,
                 "normalized": normalization == "l2"}
     try:
-        mem = memvid.use("basic", str(mv2), mode="auto", enable_vec=True, enable_lex=True)
+        mem = retry_io(lambda: memvid.use("basic", str(mv2), mode="auto", enable_vec=True, enable_lex=True),
+                       retry_on=(Exception,), retry_if=transient_write_error)
         try:
             # memvid-sdk 2.0.160 silently drops vectors from large put_many calls (observed with
             # 30+ items per call). Small batches kept every vector in our probe; the full check
             # below still verifies every chunk before activation.
             for start in range(0, len(requests), PUT_BATCH):
-                mem.put_many(requests[start:start + PUT_BATCH],
+                retry_io(lambda: mem.put_many(requests[start:start + PUT_BATCH],
                              embeddings=[list(map(float, v)) for v in vectors[start:start + PUT_BATCH]],
-                             embedding_identity=identity)
-            mem.seal()
+                             embedding_identity=identity), retry_on=(Exception,), retry_if=transient_write_error)
+            retry_io(mem.seal, retry_on=(Exception,), retry_if=transient_write_error)
         finally:
             mem.close()
     except Exception as exc:
@@ -97,7 +99,7 @@ def publish_index(chunks: Sequence[Chunk], vectors: Sequence[Sequence[float]], *
     manifest = IndexManifest(index_version, mv2.name, _sha256(mv2), collections.pop(), embedding_model,
                              pinned_revision, dimension, normalization, chunker_versions.pop(),
                              datetime.now(timezone.utc).isoformat(timespec="seconds"), tuple(chunks))
-    meta.write_text(json.dumps(_manifest_to_json(manifest), ensure_ascii=False, indent=1), encoding="utf-8")
+    retry_io(lambda: meta.write_text(json.dumps(_manifest_to_json(manifest), ensure_ascii=False, indent=1), encoding="utf-8"))
     # Verify the sealed, reopened file before activation: every chunk must be searchable and
     # must come first for its own vector. A failure leaves the previous active index in place.
     index = MemvidIndex(index_dir, manifest)
@@ -130,8 +132,8 @@ def _write_pointer(index_dir: Path, manifest: IndexManifest, manifest_name: str)
                "sha256": manifest.sha256,
                "previous": previous if previous != manifest.index_version else current.get("previous")}
     tmp = index_dir / (POINTER + ".tmp")
-    tmp.write_text(json.dumps(pointer, indent=1), encoding="utf-8")
-    os.replace(tmp, index_dir / POINTER)  # only the pointer is swapped; open .mv2 files are untouched
+    retry_io(lambda: tmp.write_text(json.dumps(pointer, indent=1), encoding="utf-8"))
+    retry_io(lambda: os.replace(tmp, index_dir / POINTER))  # only the pointer is swapped
 
 
 def list_versions(index_dir: Path) -> list[dict]:
