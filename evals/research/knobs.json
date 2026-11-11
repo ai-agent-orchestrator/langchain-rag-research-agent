@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "knobs": {
+    "k": {
+      "name": "검색 문서 수",
+      "description": "검색 분기마다 가져올 문서 수",
+      "values": [1, 2, 3],
+      "default": 2,
+      "tradeoff": "늘리면 근거 범위와 입력 토큰이 함께 늘 수 있습니다."
+    },
+    "max_rewrites": {
+      "name": "최대 재작성 수",
+      "description": "검증 피드백에 따른 재작성 횟수 상한",
+      "values": [0, 1, 2],
+      "default": 2,
+      "tradeoff": "늘리면 누락 보완 기회와 토큰·루프 비용이 늘 수 있습니다."
+    },
+    "max_gap_rounds": {
+      "name": "최대 보충 검색 수",
+      "description": "누락 지표별 보충 검색 라운드 상한",
+      "values": [0, 1, 2],
+      "default": 2,
+      "tradeoff": "늘리면 지표 회수 기회와 검색·토큰 비용이 늘 수 있습니다."
+    },
+    "use_checklist": {
+      "name": "체크리스트 사용",
+      "description": "사용자 체크리스트를 자동 추출 지표에 병합",
+      "values": [true, false],
+      "default": true,
+      "tradeoff": "켜면 필수 지표를 더 명시적으로 확인하지만 보충 검색 비용이 늘 수 있습니다."
+    }
+  }
+}

@@ -31,6 +31,11 @@ svg text{fill:var(--muted);font-size:11px}.legend span{margin-right:12px;font-si
 <p class="muted" style="font-size:12px">합성 데이터 · 규칙 기반 노드(모델 호출 없음) · 토큰은 모델이었다면 썼을 <b>추정치(≈글자수/2)</b>입니다. 비율 옆 괄호는 Wilson 95% 구간입니다. 실제 모델 결과와 섞어 읽지 마세요.</p>
 <div class="row"><label class="muted" style="display:flex;gap:6px;align-items:center;max-width:100%;min-width:0">실행 <select id="runSel" style="min-width:0;flex:1"></select></label></div>
 
+<h2>손잡이 조정</h2><section class="panel">
+<p class="muted" id="gridNote"></p><div class="row" id="knobControls"></div>
+<div id="gridResult" class="scroll"></div>
+<p>선택한 설정 JSON (복사용)</p><pre id="knobConfig" tabindex="0"></pre></section>
+
 <h2>설정별 요약</h2><div class="cards" id="cards"></div>
 
 <h2>비용–품질 지도 <span class="tag">최적화</span></h2>
@@ -56,6 +61,7 @@ svg text{fill:var(--muted);font-size:11px}.legend span{margin-right:12px;font-si
 </main>
 <script>
 const RUNS = __RUNS__;
+const GRID = __GRID__;
 const COLORS = ["--c0","--c1","--c2","--c3","--c4"];
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const pct = x => x==null ? "–" : Math.round(x*100)+"%";
@@ -174,11 +180,45 @@ function history(){
   document.getElementById("runs").innerHTML=`<tr><th>#</th><th>시각</th><th>커밋</th><th>분할</th><th>메모</th>${allNames.map(n=>`<th class="num">${n}</th>`).join("")}</tr>`+
     RUNS.map((r,i)=>`<tr><td>${i+1}</td><td>${r.at}</td><td>${r.sha||""}</td><td>${r.split}</td><td>${esc(r.note||"")}</td>${allNames.map(n=>`<td class="num">${r.configs[n]?pct(r.configs[n].summary.quality)+" · "+Math.round(r.configs[n].summary.tokens_mean):"–"}</td>`).join("")}</tr>`).join("");
 }
-draw(RUNS.length-1); history();
+function gridEntry(grid, selected){
+  return (grid.entries||[]).find(e=>Object.keys(grid.knobs).every(k=>e.knobs[k]===selected[k]));
+}
+function gridResult(grid, selected){
+  const entry=gridEntry(grid, selected), base=gridEntry(grid, grid.defaults);
+  if(!entry) return {config:selected, html:'<p class="muted">해당 조합의 결과 없음 · 미검증</p>'};
+  const s=entry.summary, b=base?.summary;
+  const delta=(v, ref, scale=1)=>ref==null?'미검증':`${v-ref>=0?'+':''}${((v-ref)*scale).toFixed(2)}`;
+  const rows=[['품질 (항목 비율의 평균)',pct(s.quality),delta(s.quality,b?.quality,100)+'p'],
+    ['추정 토큰 / 문항',s.tokens_mean.toFixed(1),delta(s.tokens_mean,b?.tokens_mean)],
+    ['루프 / 문항',s.loops_mean.toFixed(2),delta(s.loops_mean,b?.loops_mean)]];
+  for(const [key,label] of [['metric_coverage','지표'],['causal_retention','인과'],['constraint_retention','조건'],['balance','반대 근거']]){
+    const r=s[key];rows.push([label,`${r.ok}/${r.n} · ${pct(r.rate)}${ci(r)}`,r.rate==null?'평가 제외':delta(r.rate,b?.[key]?.rate,100)+'p']);
+  }
+  return {config:entry.config, html:`<p>문항 ${s.n_cases}개 · 기본값 대비 차이</p><table><tr><th>항목</th><th>선택 결과</th><th>기본값 대비</th></tr>${rows.map(r=>`<tr>${r.map(v=>`<td>${v}</td>`).join('')}</tr>`).join('')}</table>`};
+}
+function knobs(){
+  const note=document.getElementById('gridNote');
+  if(!GRID?.entries?.length){note.textContent='격자 결과 없음 · python scripts/research_grid.py 실행 후 보드를 다시 생성하세요.';return}
+  note.textContent=`compare · ${GRID.dataset} · ${GRID.at} · ${GRID.entries.length}개 조합 · 합성 데이터·규칙 기반 경로 시험 · 토큰은 추정치 · 실제 모델 품질 미검증`;
+  const selected={...GRID.defaults}, controls=document.getElementById('knobControls');
+  const update=()=>{const result=gridResult(GRID,selected);document.getElementById('gridResult').innerHTML=result.html;document.getElementById('knobConfig').textContent=JSON.stringify(result.config,null,2)};
+  Object.entries(GRID.knobs).forEach(([key,k])=>{
+    const label=document.createElement('label'), select=document.createElement('select'), help=document.createElement('p');
+    label.textContent=k.name+' ';select.setAttribute('aria-label',k.name);select.id='knob-'+key;
+    k.values.forEach((value,i)=>{const o=document.createElement('option');o.value=i;o.textContent=String(value);select.appendChild(o)});
+    select.value=k.values.findIndex(v=>v===k.default);
+    select.onchange=()=>{selected[key]=k.values[+select.value];update()};
+    help.className='muted';help.textContent=k.description+' · '+k.tradeoff;
+    label.appendChild(select);label.appendChild(help);controls.appendChild(label);
+  });update();
+}
+if(RUNS.length){draw(RUNS.length-1); history()}
+else document.getElementById('meta').textContent='실행 기록 없음';
+knobs();
 </script></body></html>"""
 
 
-def render(runs: list[dict]) -> str:
+def render(runs: list[dict], grid: dict | None = None) -> str:
     # Old runs contain scores only. Attach gold only for the matching dataset
     # version; never invent gold text for an unknown historical dataset.
     path = Path(__file__).resolve().parents[1] / "evals" / "research" / "cases.ko.json"
@@ -192,4 +232,11 @@ def render(runs: list[dict]) -> str:
                 for key in ("gold", "question"):
                     if key in source:
                         case.setdefault(key, source[key])
-    return TEMPLATE.replace("__RUNS__", json.dumps(enriched, ensure_ascii=False).replace("</", "<\\/"))
+    if grid is None:
+        grid_path = Path(__file__).resolve().parents[1] / ".runs" / "research_eval" / "grid.json"
+        grid = json.loads(grid_path.read_text(encoding="utf-8")) if grid_path.exists() else {}
+    # Replace both markers in one pass: user text may itself contain a marker.
+    import re
+    payloads = {"__RUNS__": enriched, "__GRID__": grid}
+    return re.sub(r"__RUNS__|__GRID__", lambda m: json.dumps(
+        payloads[m.group()], ensure_ascii=False).replace("</", "<\\/"), TEMPLATE)
