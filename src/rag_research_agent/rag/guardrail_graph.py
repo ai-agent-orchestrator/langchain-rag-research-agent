@@ -12,7 +12,7 @@
 - Gate 2 (route_by_cost_and_health): pure Python. Kills on an unexpected error, on too many loops, or
   when estimated cost units exceed the limit; retries only transient failures (retrieval outage,
   worker capacity, inference timeout) while loops remain.
-- Cost units are local estimates (default: 1.0 per generation call + 0.1 per RAG call), not money or
+- Cost units are local estimates (default: 1.0 per generation call + 0.1 per retrieval call), not money or
   tokens. Nothing is uploaded: the whole run is wrapped in serving_trace_guard().
 - State holds counters and codes, never raw request text or exception messages.
 
@@ -164,7 +164,9 @@ def structured_router(model, masker) -> Callable[[str], RouteDecision]:
 
 # ------------------------------------------------------------------ gate 2 (pure python)
 def default_cost(reply: Optional[GuidanceReply]) -> float:
-    return 0.1 + (float(reply.generation_calls) if reply is not None else 0.0)
+    if reply is None:
+        return 0.1
+    return reply.retrieval_calls / 10 + float(reply.generation_calls)
 
 
 def route_by_cost_and_health(state: GuardrailState, limits: GuardrailLimits) -> str:

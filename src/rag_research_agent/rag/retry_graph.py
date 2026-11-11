@@ -32,6 +32,7 @@ def _rrf(rankings, k):
 
 
 def build_graph(library, profile="research", tau=None, k=3, max_retries=2, parts=None, mode="vector", *, log_path=None):
+    """Return E2 state with retrieval_calls counting searches, including each rewrite variant."""
     if max_retries not in (0, 1, 2) or k < 1:
         raise ValueError("max_retries must be 0..2 and k must be positive")
     eq = Equalizer.from_profile(profile)
@@ -46,6 +47,7 @@ def build_graph(library, profile="research", tau=None, k=3, max_retries=2, parts
             raise ValueError("query must not be empty")
         return {"query": query, "queries": [{"query": query, "reason": "original"}],
                 "attempts": [], "rankings": [], "used_queries": {query}, "generation_calls": 0,
+                "retrieval_calls": 0,
                 "status": Status.REQUEST_MORE, "raw_draft": "", "rows": [], "versions": {},
                 "budget": state.get("budget", 600), "final_prompt_input": "", "included_ids": ()}
 
@@ -56,7 +58,8 @@ def build_graph(library, profile="research", tau=None, k=3, max_retries=2, parts
         attempt = {"attempt": len(state["attempts"]) + 1, "queries": state["queries"],
                    "hits": [{"chunk_id": c.chunk_id, "score": score, "rank": rank} for c, score, rank in hits],
                    "top_score": max((score for _, score, _ in hits), default=None), "rrf": rrf}
-        return {**state, "rankings": rankings, "hits": hits, "attempts": [*state["attempts"], attempt]}
+        return {**state, "rankings": rankings, "hits": hits, "attempts": [*state["attempts"], attempt],
+                "retrieval_calls": state["retrieval_calls"] + len(new)}
 
     def grade(state):
         top = state["attempts"][-1]["top_score"]

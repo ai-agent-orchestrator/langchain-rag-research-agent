@@ -55,6 +55,7 @@ class GuidanceReply:
     generation_calls: int = 0
     retrieval_status: str | None = None
     reason_code: str = ""
+    retrieval_calls: int = 1  # internal budget metadata; intentionally omitted from to_dict()
 
     def to_dict(self):
         if self.status == Status.BLOCKED:
