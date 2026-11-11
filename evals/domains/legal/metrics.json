@@ -1,0 +1,30 @@
+[
+  {
+    "name": "required_statute_coverage",
+    "kind": "contains",
+    "field": "answer",
+    "safety": false,
+    "values_field": "gold.required_statutes"
+  },
+  {
+    "name": "unsupported_statute_count",
+    "kind": "count",
+    "field": "unsupported_statutes",
+    "expected": 0,
+    "safety": true
+  },
+  {
+    "name": "repealed_statute_count",
+    "kind": "count",
+    "field": "repealed_statutes",
+    "expected": 0,
+    "safety": true
+  },
+  {
+    "name": "timeline_error_count",
+    "kind": "count",
+    "field": "timeline_errors",
+    "expected": 0,
+    "safety": true
+  }
+]
