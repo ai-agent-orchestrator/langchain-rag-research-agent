@@ -1,7 +1,7 @@
 # 리서치 공개 API 0.1
 
-공개 경로는 `rag_research_agent.rag.research_api`다. `research/` 패키지의 re-export는
-`tests/test_structure.py`의 모듈 간 import 제한에 걸리므로 조립 계층 `rag/`에 둔다.
+공개 경로는 `rag_research_agent.research.api`다. `research/__init__.py`에서 공개 이름을 지연 집계하고 `research/api.py`는 같은 패키지의 이름만 가져온다.
+`tests/test_structure.py`는 패키지 집계 파일을 모듈 간 import 검사에서 제외한다. 실행 구현은 기존 rag·guard·store에 둔다.
 구현은 기존 위치에 유지하며 `API_VERSION = "0.1"`을 제공한다.
 
 공개 이름: `run_research`, `ResearchConfig`, `ResearchResult`, `DomainFilter`,
@@ -25,7 +25,7 @@ Chroma 예제는 chromadb가 필요하다. 파사드는 설치·모델 로딩을
 ## 예제 1: 키워드 검색
 
 ```python
-from rag_research_agent.rag.research_api import (
+from rag_research_agent.research.api import (
     API_VERSION, ResearchConfig, ResearchResult, keyword_search, run_research,
 )
 
@@ -52,7 +52,7 @@ from uuid import uuid4
 from rag_research_agent.core.contracts import Chunk
 from rag_research_agent.embed.providers import FakeEmbedder
 from rag_research_agent.store.chroma_store import publish_chroma
-from rag_research_agent.rag.research_api import ResearchConfig, chroma_search, run_research
+from rag_research_agent.research.api import ResearchConfig, chroma_search, run_research
 
 text = "주택 거래량은 18% 감소했다."
 embedder = FakeEmbedder(dimension=64)
@@ -82,7 +82,7 @@ finally:
 
 ```python
 from rag_research_agent.guard.legal_filter import LegalFilter
-from rag_research_agent.rag.research_api import (
+from rag_research_agent.research.api import (
     DomainFilter, ResearchConfig, get_filter, keyword_search, run_research,
 )
 

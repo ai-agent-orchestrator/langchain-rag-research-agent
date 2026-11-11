@@ -8,7 +8,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from rag_research_agent.core.research import Draft, ReportSentence, ResearchPlan
-from rag_research_agent.guard.domain_filter import DomainFilter, get_filter, register
+
 
 if TYPE_CHECKING:
     from rag_research_agent.rag.research_graph import ResearchConfig, ResearchResult, SearchFn
@@ -25,6 +25,9 @@ def __getattr__(name: str):
     if name in {"ResearchConfig", "ResearchResult", "SearchFn", "keyword_search"}:
         from rag_research_agent.rag import research_graph
         return getattr(research_graph, name)
+    if name in {"DomainFilter", "get_filter", "register"}:
+        from rag_research_agent.guard import domain_filter
+        return getattr(domain_filter, name)
     if name == "chroma_search":
         from rag_research_agent.rag.research_chroma import make_chroma_search
         return make_chroma_search
@@ -46,6 +49,7 @@ def run_research(question: str, *, search: SearchFn, config: ResearchConfig | No
     if domain == "research":
         return ResearchRunner(search, cfg).run(question, tuple(checklist))
 
+    from rag_research_agent.guard.domain_filter import get_filter
     selected = get_filter(domain)
     decision = selected.check_input(question)
     screen = "SCREEN:PASS" if decision.allowed else "SCREEN:BLOCK:" + decision.code

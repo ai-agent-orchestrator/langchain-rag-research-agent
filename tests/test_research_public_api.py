@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-from rag_research_agent.rag import research_api as api
+from rag_research_agent.research import api
 
 
 def test_public_exports_are_existing_objects():
@@ -21,7 +21,7 @@ def test_public_exports_are_existing_objects():
         assert getattr(api, name) is getattr(domain_filter, name)
     assert api.chroma_search is research_chroma.make_chroma_search
     namespace = {}
-    exec("from rag_research_agent.rag.research_api import *", namespace)
+    exec("from rag_research_agent.research.api import *", namespace)
     assert set(api.__all__) <= namespace.keys()
     with pytest.raises(AttributeError):
         getattr(api, "unknown_public_name")
@@ -87,7 +87,7 @@ class Block(importlib.abc.MetaPathFinder):
                                       'langsmith', 'chromadb', 'memvid_sdk', 'sentence_transformers'}:
             raise ImportError('blocked optional dependency: ' + fullname)
 sys.meta_path.insert(0, Block())
-from rag_research_agent.rag.research_api import API_VERSION, DomainFilter, register, get_filter, run_research
+from rag_research_agent.research.api import API_VERSION, DomainFilter, register, get_filter, run_research
 assert API_VERSION == '0.1'
 assert isinstance(get_filter('research'), DomainFilter)
 assert 'rag_research_agent.rag.research_graph' not in sys.modules
@@ -98,3 +98,11 @@ assert 'rag_research_agent.rag.research_graph' not in sys.modules
     result = subprocess.run([sys.executable, "-I", "-c", code], cwd=root,
                             env=env, capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stderr
+
+
+def test_package_and_api_exports_are_identical():
+    import rag_research_agent.research as public
+
+    assert public.__all__ == api.__all__
+    for name in api.__all__:
+        assert getattr(public, name) is getattr(api, name)
