@@ -1,0 +1,186 @@
+"""Opt-in immutable Chroma versions; only current.json is replaced.
+
+Publish/activate/prune are single-writer operations (exclusive lock file, fail
+fast if busy). Readers snapshot the pointer and keep their original index.
+Run prune only after readers of retired versions have finished. A crashed writer
+can leave a reserved version and .writer.lock; inspect before removing the lock.
+"""
+from __future__ import annotations
+
+MATURITY = "incubating"
+
+from contextlib import contextmanager
+from dataclasses import asdict
+import json
+import logging
+import os
+from pathlib import Path
+import re
+import shutil
+import tempfile
+import time
+from typing import Sequence
+
+from rag_research_agent.core.contracts import Chunk
+from rag_research_agent.store.chroma_store import ChromaIndex, publish_chroma
+
+LOGGER = logging.getLogger(__name__)
+
+
+class ChromaPointer:
+    """Version manager for already masked chunks and caller-supplied vectors.
+
+    Version folders are never moved or overwritten. Failed builds remain reserved
+    until explicit pruning. No embedding model or network service is loaded.
+    """
+
+    def __init__(self, root: Path):
+        self.root = Path(root)
+
+    @contextmanager
+    def _writer(self):
+        self.root.mkdir(parents=True, exist_ok=True)
+        lock = self.root / ".writer.lock"
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            raise RuntimeError("CHROMA_WRITER_BUSY") from None
+        try:
+            os.close(fd)
+            yield
+        finally:
+            lock.unlink()
+
+    def _version_path(self, version: str) -> Path:
+        if not isinstance(version, str) or not re.fullmatch(r"v[1-9][0-9]*", version):
+            raise ValueError("invalid Chroma version")
+        path = self.root / "versions" / version
+        if path.is_symlink() or path.parent.is_symlink():
+            raise ValueError("symlinked version paths are unsupported")
+        return path
+
+    def _pointer(self) -> dict:
+        with (self.root / "current.json").open(encoding="utf-8") as handle:
+            pointer = json.load(handle)
+        self._version_path(pointer["version"])
+        if pointer.get("previous") is not None:
+            self._version_path(pointer["previous"])
+        return pointer
+
+    def active_version(self) -> str:
+        """Read one complete pointer snapshot without holding a reader lock."""
+        return self._pointer()["version"]
+
+    def _replace_pointer(self, version: str) -> None:
+        try:
+            old = self._pointer()["version"]
+        except FileNotFoundError:
+            old = None
+        fd, name = tempfile.mkstemp(prefix=".current-", suffix=".tmp", dir=self.root)
+        temporary = Path(name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump({"version": version, "previous": old}, handle)
+                handle.flush()
+                os.fsync(handle.fileno())
+            # Windows readers can briefly deny delete-sharing on current.json.
+            # Retry the same complete file; never truncate the live pointer.
+            for attempt in range(20):
+                try:
+                    os.replace(temporary, self.root / "current.json")
+                    break
+                except PermissionError:
+                    if attempt == 19:
+                        raise
+                    time.sleep(0.01)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    def _open(self, version: str) -> ChromaIndex:
+        path = self._version_path(version)
+        with (path / "manifest.json").open(encoding="utf-8") as handle:
+            manifest = json.load(handle)
+        index = ChromaIndex(path, manifest["collection"],
+                            [Chunk(**item) for item in manifest["chunks"]],
+                            manifest["dimension"])
+        try:
+            index.verify()
+        except BaseException:
+            index.close()
+            raise
+        return index
+
+    def open_active(self) -> ChromaIndex:
+        """Caller owns close(); later pointer changes do not alter this handle."""
+        return self._open(self.active_version())
+
+    def publish(self, chunks: Sequence[Chunk], vectors: Sequence[Sequence[float]], *,
+                collection: str, dimension: int) -> str:
+        """Build and verify a fresh v<N>, then activate it atomically."""
+        if dimension <= 0 or not chunks:
+            raise ValueError("positive dimension and nonempty chunks required")
+        with self._writer():
+            versions = self.root / "versions"
+            versions.mkdir(exist_ok=True)
+            # Permanent empty reservations prevent version ID reuse after prune.
+            allocated = self.root / ".allocated"
+            allocated.mkdir(exist_ok=True)
+            numbers = [int(p.name[1:]) for p in (*versions.iterdir(), *allocated.iterdir())
+                       if re.fullmatch(r"v[1-9][0-9]*", p.name)]
+            version = f"v{max(numbers, default=0) + 1}"
+            path = self._version_path(version)
+            (allocated / version).touch(exist_ok=False)
+            path.mkdir()  # reservation: never reuse or remove a failed build here
+            index = publish_chroma(chunks, vectors, path=path, collection=collection,
+                                   dimension=dimension)
+            try:
+                with (path / "manifest.json").open("x", encoding="utf-8") as handle:
+                    json.dump({"collection": collection, "dimension": dimension,
+                               "chunks": [asdict(c) for c in chunks]}, handle)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+            finally:
+                index.close()
+            self._replace_pointer(version)
+            return version
+
+    def _activate(self, version: str) -> str:
+        index = self._open(version)  # missing/incomplete versions cannot be activated
+        index.close()
+        if self.active_version() != version:
+            self._replace_pointer(version)
+        return version
+
+    def activate(self, version: str) -> str:
+        with self._writer():
+            return self._activate(version)
+
+    def rollback(self) -> str:
+        with self._writer():
+            previous = self._pointer().get("previous")
+            if previous is None:
+                raise ValueError("no previous Chroma version")
+            return self._activate(previous)
+
+    def prune(self) -> dict[str, list[str]]:
+        """Explicit cleanup; active and previous versions are always retained.
+
+        PermissionError (including Windows sharing violations) is a warning.
+        Partially removed retired versions can be retried by a later prune.
+        """
+        with self._writer():
+            pointer = self._pointer()
+            kept = {pointer["version"], pointer.get("previous")}
+            report: dict[str, list[str]] = {"removed": [], "kept_locked": []}
+            for path in sorted((self.root / "versions").iterdir()):
+                if not re.fullmatch(r"v[1-9][0-9]*", path.name) or path.name in kept:
+                    continue
+                self._version_path(path.name)
+                try:
+                    shutil.rmtree(path)
+                except PermissionError:
+                    LOGGER.warning("CHROMA_PRUNE_LOCKED")
+                    report["kept_locked"].append(path.name)
+                else:
+                    report["removed"].append(path.name)
+            return report
