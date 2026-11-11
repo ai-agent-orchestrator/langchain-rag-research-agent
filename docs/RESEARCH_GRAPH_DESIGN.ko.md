@@ -1,6 +1,6 @@
 # 리서치 도메인 LangGraph 가드레일 설계 (분업형 리서치 그래프 + 교체형 도메인 필터)
 
-2026-11-11 KST · 작성: Claude · 상태: 설계안(1단계만 구현) · 관련: D13/P1, `docs/LANGGRAPH_GUARDRAIL.ko.md`, `docs/DOMAIN_FILTERS.ko.md`
+2026-11-11 KST · 작성: Claude · 상태: 규칙 기반 1차 구현(모델 없음) · 실험 보드 있음 · 관련: D13/P1, `docs/LANGGRAPH_GUARDRAIL.ko.md`, `docs/DOMAIN_FILTERS.ko.md`
 
 ## 0. 한 줄 요약
 
@@ -135,12 +135,16 @@ START → classify ─smalltalk→ finish
 - 1단계 구현 완료(이번 커밋): `guard/domain_filter.py`(교체 계약·등록), `guard/research_filter.py`(검수 v1:
   수치·근거·인과·조건·밀도), 가드레일 그래프의 `screen`·`verify` 관문과 재생성 루프, `GuidancePipeline.ainvoke_with_evidence`.
   시험 `tests/test_domain_filter.py` 18개.
-- 아직 없음: plan, 관점 분리 검색, refine 분리, extract(구조화 출력), compare, coverage·표적 재검색, claim 인용 작성, `GAP`·`ONE_SIDED` 판정.
+- 2026-11-11 추가(규칙 기반, 모델 없음): `core/research.py`(Claim·Metric·Relation·SourceRef·Draft, span 검증),
+  `rag/research_graph.py`(plan → base/pro/con/limits 검색 → refine → extract → compare → coverage ⇄ retrieve_gap → write → verify ⇄ rewrite),
+  `guard/research_filter.verify_report`(claim 단위 검수: GAP·UNSUPPORTED_NUMBER·UNCITED·CAUSAL_LOSS·CONSTRAINT_DROPPED·ONE_SIDED·LOW_DENSITY),
+  실험 `scripts/research_eval.py` + 보드 `scripts/research_board.py`. 시험 `tests/test_research_graph.py` 12개.
+- 아직 없음: 구조화 출력 모델 노드(로컬 모델 자리만 있음), Chroma 검색 어댑터, 실제 모델 작성기.
 
 ## 8. 구현 순서 (각 단계 끝마다 시험 통과 + 보고서)
 
 1. **(완료)** 도메인 필터 계약 + 리서치 검수 v1 + screen/verify 관문.
-2. State 스키마와 리듀서(`Claim`·`Metric`·`Relation`·`SourceRef`), span 검증기. 순수 Python, 모델 없음.
+2. **(규칙 기반 완료)** State 스키마와 리듀서(`Claim`·`Metric`·`Relation`·`SourceRef`), span 검증기. 순수 Python, 모델 없음.
 3. extract 노드: 규칙 폴백 먼저(rule_labeler·numbers), 그다음 구조화 출력 어댑터(rag/ 안에서만).
 4. plan + coverage + `retrieve_gap` 표적 루프, `GAP` 코드와 지표별 한도.
 5. 관점 분리 검색(pro/con/base)과 compare, `ONE_SIDED` 판정.
@@ -149,8 +153,38 @@ START → classify ─smalltalk→ finish
 
 2·3·4단계는 모델 없이 시험 가능한 부분이 많아 NightCoder 명세로 나눠 맡기기 좋다.
 
-## 9. 결정이 필요한 것
+## 9. 결정 (2026-11-11 대표 선택, 모두 설정으로 바꿀 수 있음)
 
-- plan의 필수 지표를 누가 정하는가: 질문에서 자동 추출만 할지, 사용자가 체크리스트로 줄 수 있게 할지.
-- 반대 근거가 로컬 DB에 아예 없을 때: 보고서에 "반대 근거 없음"만 적을지, 자료 추가를 요청하고 멈출지.
-- 구조화 출력 모델: 로컬 모델(Llama 계열)로 할지, 마스킹 후 외부 모델을 허용할지(리서치 프리셋 한정).
+| 항목 | 기본값 | 설정 |
+| --- | --- | --- |
+| 필수 지표 | 질문 자동 추출 + 사용자 체크리스트 병합(체크리스트 우선) | `use_checklist`, `auto_metrics` |
+| 반대 근거가 없을 때 | 보고서에 "반대·리스크 근거를 찾지 못했습니다" 명시하고 계속 | `no_con_policy="note"` / `"stop"` |
+| 구조화 출력 모델 | 규칙 우선, 로컬 모델은 끼울 자리만(외부 전송 0) | 노드 함수 교체 |
+| 평가 | 레포 실험 스크립트 + HTML 보드(실행 기록 누적) | `scripts/research_eval.py` |
+
+## 10. 비용 최적화: 루프 비용 vs 검색으로 줄인 입력
+
+LangGraph는 루프 때문에 비용이 폭증할 수도 있고, 검색으로 모델 입력을 줄여 비용을 낮출 수도 있다. 둘 사이의 기준을 이렇게 잡는다.
+
+**총비용 = Σ(노드별 모델 입력 + 출력)**, 단일 호출 기준선 = 질문 + 전체 자료를 한 번에 읽는 비용.
+
+1. **입력은 State로 압축한다.** 작성 노드는 원문이 아니라 State의 주장 표(수치·인과·조건·관점이 있는 문장)만 본다.
+   일반론 문장은 State에 있어도 프롬프트에 넣지 않는다. 추출 노드는 검색된 문서만 한 번씩 읽는다.
+2. **루프는 싼 노드로 되돌린다.** 지표 누락은 검색(모델 비용 0)으로, 문장 문제는 재작성(State 표만)으로 되돌리고,
+   전체 재실행은 하지 않는다.
+3. **루프마다 예산을 확인한다.** `max_shadow_tokens`를 넘으면 더 돌지 않고 "검수 미통과 항목"을 붙여 끝낸다.
+4. **손익분기를 측정한다.** 자료가 적으면 그래프가 더 비싸고, 많아지면 단일 호출이 선형으로 비싸진다.
+   보드의 "자료 규모별 손익분기"가 교차점을 보여 준다.
+
+첫 측정(합성, 규칙 기반, 추정 토큰 ≈ 글자수/2, 2026-11-11, compare 6문항):
+
+| 문항당 추가 배경 문서 | 단일 호출 기준선 토큰 / 품질 | graph_full 토큰 / 품질 |
+| --- | --- | --- |
+| +0 | 452 / 41% | 759 / 97% |
+| +10 | 1,788 / 34% | 1,324 / 93% |
+| +30 | 4,448 / 34% | 1,405 / 84% |
+| +60 | 8,438 / 34% | 1,405 / 84% |
+
+읽는 법: 이 합성 셋에서는 문항당 배경 문서가 10개 안팎이면 그래프가 더 싸진다. 배경 문서가 늘면 그래프 품질도 떨어진다
+(잡음 문서가 검색 자리를 차지함). 다음 실험 축은 검색 k, 재작성 한도, 잡음 비율이다.
+**한계:** 기준선은 실제 LLM이 아니라 "첫 문장 요약"이고, 토큰은 추정치다. 실제 모델 비교는 미검증이다.

@@ -17,6 +17,7 @@ MATURITY = "incubating"
 from dataclasses import dataclass
 import re
 
+from rag_research_agent.core.research import Draft, ResearchPlan
 from rag_research_agent.guard.domain_filter import InputDecision, Issue, Verdict, register
 
 VERSION = "research-filter/1"
@@ -24,8 +25,10 @@ VERSION = "research-filter/1"
 CAUSAL_CUES = ("때문에", "때문", "따라서", "그 결과", "결과적으로", "으로 인해", "로 인해", "원인", "이유로",
                "그래서", "덕분에", "탓에", "초래", "야기", "이어진", "이어져", "이끌", "because", "therefore",
                "as a result", "leads to", "led to", "caused", "due to", "results in")
-CONSTRAINT_CUES = ("단,", "다만", "제약", "한계", "조건", "이상일 때", "이하일 때", "경우에만", "하지 않는다",
-                   "금지", "제외", "only if", "unless", "except", "must not", "limited to")
+CONSTRAINT_CUES = ("단,", "다만", "제약", "조건", "이상일 때", "이하일 때", "경우에만", "에만 ", "에 한정", "한정된",
+                   "하지 않는다", "금지", "제외", "대상으로 하며", "only if", "unless", "except", "must not", "limited to")
+# "X(으)로 ... 증가/감소했다": cause marked by the instrumental particle, effect by a change verb
+CAUSAL_PATTERN = re.compile(r"(?:하락|상승|인상|인하|확대|축소|도입|증가|감소|개선|악화|변화|부족|완화|강화|규제|자동화|보급)(?:으로|로)\s[^.!?]*?(?:증가|감소|개선|하락|상승|절감|늘었|줄었|늘어|줄어|악화|회복|이어)")
 CLICHE_CUES = ("일반적으로", "다양한", "여러 가지", "중요하다", "중요합니다", "필요하다", "필요합니다",
                "많은 사람", "다방면", "종합적으로", "결론적으로 말하면", "it is important", "various",
                "in general", "many factors")
@@ -55,7 +58,9 @@ def _numbers(text: str) -> set[str]:
 
 def _has(text: str, cues) -> bool:
     low = (text or "").lower()
-    return any(c in low for c in cues)
+    if any(c in low for c in cues):
+        return True
+    return cues is CAUSAL_CUES and bool(CAUSAL_PATTERN.search(text or ""))
 
 
 @dataclass(frozen=True)
@@ -114,6 +119,47 @@ class ResearchFilter:
 
     def finalize(self, answer: str, branch: str = "default") -> str:
         return answer
+
+
+
+def relevant_claims(plan: ResearchPlan, claims, anchors) -> list:
+    """Causal/constraint claims that belong to the report: they mention a required metric, or they come
+    from a source the report already relies on (the same document's cause or exception)."""
+    sources = {c.source_id for c in anchors}
+    return [c for c in claims if c.kind in ("causal", "constraint")
+            and (c.source_id in sources or any(m in c.text for m in plan.required_metrics))]
+
+
+def verify_report(draft: Draft, plan: ResearchPlan, claims, metrics, *, expect_balance: bool = True) -> tuple[str, ...]:
+    """Claim-level check of a report built from graph State (docs/RESEARCH_GRAPH_DESIGN.ko.md 4).
+    Each code tells the graph where to go back: GAP:<metric> -> targeted search, others -> rewrite."""
+    findings = [s for s in draft.sentences if not s.note]
+    if not findings:
+        return ("EMPTY_REPORT",)
+    by_id = {c.claim_id: c for c in claims}
+    codes: list[str] = []
+    body = " ".join(s.text for s in findings)
+    for metric in plan.required_metrics:
+        if not any(metric in s.text and _NUMBER.search(s.text) for s in findings):
+            codes.append("GAP:" + metric)
+    known_numbers = {m.value for m in metrics} | {n for c in claims for n in _numbers(c.text)}
+    if _numbers(body) - known_numbers:
+        codes.append("UNSUPPORTED_NUMBER")
+    if any(not s.claim_ids or any(i not in by_id for i in s.claim_ids) for s in findings):
+        codes.append("UNCITED")
+    cited = [by_id[i] for s in findings for i in s.claim_ids if i in by_id]
+    cited_ids = {c.claim_id for c in cited}
+    relevant = relevant_claims(plan, claims, cited)
+    if any(c.kind == "causal" and c.claim_id not in cited_ids for c in relevant):
+        codes.append("CAUSAL_LOSS")
+    if any(c.kind == "constraint" and c.claim_id not in cited_ids for c in relevant):
+        codes.append("CONSTRAINT_DROPPED")
+    if expect_balance and any(c.stance == "con" for c in claims) and not any(c.stance == "con" for c in cited):
+        codes.append("ONE_SIDED")
+    cliche = sum(1 for s in findings if _has(s.text, CLICHE_CUES) and not _numbers(s.text))
+    if cliche * 2 > len(findings):
+        codes.append("LOW_DENSITY")
+    return tuple(codes)
 
 
 register("research", ResearchFilter)
