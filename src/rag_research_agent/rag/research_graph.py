@@ -18,6 +18,8 @@ import re
 from typing import Annotated, Callable, Literal, Optional, TypedDict
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.types import Command, interrupt
 
 from rag_research_agent.core.research import (
     NO_COUNTER_EVIDENCE, Claim, Draft, Metric, Relation, ReportSentence, ResearchPlan, SourceRef, span_matches,
@@ -63,6 +65,7 @@ class ResearchConfig:
     parallel_branches: bool = False  # requires thread-safe, deterministic, prefix-stable top-k search
     extractor: str = "rule"        # "rule" | "llm" (requires model and masker)
     planner: Literal["rule", "llm"] = "rule"  # requires planner_model and masker
+    review_plan: bool = False       # interrupt after planning; requires a checkpointer and thread_id
 
 
 # ------------------------------------------------------------------ rule nodes (pure)
@@ -225,6 +228,7 @@ class ResearchResult:
     log: tuple
     cost: tuple
     path: tuple
+    interrupts: tuple = ()          # LangGraph Interrupt objects; path covers this invocation only
 
     @property
     def shadow_tokens(self) -> int:
@@ -232,7 +236,10 @@ class ResearchResult:
 
 
 def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(), *,
-                         extractor_model=None, planner_model=None, masker=None):
+                         extractor_model=None, planner_model=None, masker=None,
+                         checkpointer: BaseCheckpointSaver | None = None):
+    if cfg.review_plan and checkpointer is None:
+        raise ValueError("review_plan requires a checkpointer")
     if cfg.planner not in ("rule", "llm"):
         raise ValueError("unknown planner")
     planner = None
@@ -264,6 +271,12 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
         return {"plan": plan, "gap_rounds": {}, "rewrites": 0, "feedback": (), "stopped": "",
                 "log": codes,
                 "cost": spend("plan", "model_in", s["question"])}
+
+    def review_plan_node(s: ResearchState):
+        metrics = _review_metrics(interrupt({"required_metrics": list(s["plan"].required_metrics)}))
+        plan = replace(s["plan"], required_metrics=metrics,
+                       origin=tuple((metric, "review") for metric in metrics))
+        return {"plan": plan, "log": ["PLAN_REVIEWED"]}
 
     def _fetch(query: str, branch: str, k: int, known: set[str]) -> list[SourceRef]:
         found = []
@@ -415,18 +428,23 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
             continue
         g.add_node(name, fn)
     g.add_edge(START, "plan")
+    retrieval_start = "plan"
+    if cfg.review_plan:
+        g.add_node("review_plan", review_plan_node)
+        g.add_edge("plan", "review_plan")
+        retrieval_start = "review_plan"
     if cfg.parallel_branches:
         branch_names = []
         for index, (branch, suffix) in enumerate(branches):
             name = "retrieve_" + branch
             g.add_node(name, branch_node(index, suffix))
-            g.add_edge("plan", name)
+            g.add_edge(retrieval_start, name)
             branch_names.append(name)
         g.add_node("join_retrieval", join_retrieval)
         g.add_edge(branch_names, "join_retrieval")
         g.add_edge("join_retrieval", "refine")
     else:
-        g.add_edge("plan", "retrieve")
+        g.add_edge(retrieval_start, "retrieve")
         g.add_edge("retrieve", "refine")
     g.add_edge("retrieve_gap", "refine")
     g.add_edge("refine", "extract")
@@ -438,31 +456,80 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
     g.add_conditional_edges("verify", after_verify, {"finish": END, "retrieve_gap": "retrieve_gap", "rewrite": "rewrite"})
     g.add_edge("rewrite", "write")
     g.add_edge("stop_no_con", END)
-    return g.compile()
+    return g.compile(checkpointer=checkpointer)
+
+
+def _review_metrics(value) -> tuple[str, ...]:
+    """Validate the human edit before resuming; keep order and remove duplicates."""
+    if not isinstance(value, dict) or set(value) != {"required_metrics"}:
+        raise ValueError("review requires required_metrics")
+    metrics = value["required_metrics"]
+    if not isinstance(metrics, (list, tuple)) or any(not isinstance(m, str) or not m.strip() for m in metrics):
+        raise ValueError("required_metrics must be a list or tuple of nonblank strings")
+    return tuple(dict.fromkeys(m.strip() for m in metrics))
 
 
 class ResearchRunner:
     def __init__(self, search: SearchFn, cfg: ResearchConfig = ResearchConfig(), *,
-                 extractor_model=None, planner_model=None, masker=None):
+                 extractor_model=None, planner_model=None, masker=None,
+                 checkpointer: BaseCheckpointSaver | None = None):
         self.cfg, self.search = cfg, search
+        self.checkpointer = checkpointer
         self.graph = build_research_graph(search, cfg, extractor_model=extractor_model,
-                                          planner_model=planner_model, masker=masker)
+                                          planner_model=planner_model, masker=masker, checkpointer=checkpointer)
 
-    def run(self, question: str, checklist: tuple[str, ...] = ()) -> ResearchResult:
+    def _config(self, thread_id: str | None):
+        if self.checkpointer is not None:
+            if not isinstance(thread_id, str) or not thread_id.strip():
+                raise ValueError("checkpointer requires a nonblank thread_id")
+        elif thread_id is not None:
+            raise ValueError("thread_id requires a checkpointer")
+        config = {**serving_config(), "recursion_limit": 60}
+        if thread_id is not None:
+            config["configurable"] = {"thread_id": thread_id}
+        return config
+
+    def run(self, question: str, checklist: tuple[str, ...] = (), *,
+            thread_id: str | None = None) -> ResearchResult:
+        """Start a new request. Checkpointed requests need a fresh, caller-owned thread ID."""
         with serving_trace_guard():
-            path: list[str] = []
-            state: dict = {}
-            for step in self.graph.stream({"question": question, "checklist": tuple(checklist)},
-                                          config={**serving_config(), "recursion_limit": 60}, stream_mode="updates"):
-                for node, update in step.items():
-                    path.append(node)
-                    for key, value in (update or {}).items():
-                        if key in ("sources",):
-                            state[key] = _merge_sources(state.get(key, []), value)
-                        elif key in ("claims", "metrics", "relations", "log", "cost"):
-                            state[key] = state.get(key, []) + list(value)
-                        else:
-                            state[key] = value
+            config = self._config(thread_id)
+            if self.checkpointer is not None and self.graph.get_state(config).values:
+                raise ValueError("thread_id already exists; resume it or use a new thread_id")
+            return self._execute({"question": question, "checklist": tuple(checklist)}, config)
+
+    def resume(self, thread_id: str, *, required_metrics: list[str] | tuple[str, ...]) -> ResearchResult:
+        """Continue a paused plan review using edited, already-masked metric names."""
+        metrics = _review_metrics({"required_metrics": required_metrics})
+        with serving_trace_guard():
+            config = self._config(thread_id)
+            if self.checkpointer is None or not self.cfg.review_plan:
+                raise ValueError("resume requires checkpointed plan review")
+            snapshot = self.graph.get_state(config)
+            if not any(task.interrupts for task in snapshot.tasks):
+                raise ValueError("thread_id has no pending plan review")
+            return self._execute(Command(resume={"required_metrics": list(metrics)}), config)
+
+    def _execute(self, graph_input, config) -> ResearchResult:
+        path: list[str] = []
+        state: dict = {}
+        interrupts = ()
+        for step in self.graph.stream(graph_input, config=config, stream_mode="updates"):
+            for node, update in step.items():
+                if node == "__interrupt__":
+                    interrupts = tuple(update)
+                    continue
+                path.append(node)
+                for key, value in (update or {}).items():
+                    if key in ("sources",):
+                        state[key] = _merge_sources(state.get(key, []), value)
+                    elif key in ("claims", "metrics", "relations", "log", "cost"):
+                        state[key] = state.get(key, []) + list(value)
+                    else:
+                        state[key] = value
+        if self.checkpointer is not None:
+            # Resume updates omit completed nodes; read the full reducer state from the saver.
+            state = dict(self.graph.get_state(config).values)
         draft = state.get("draft") or Draft()
         if state.get("verify_codes") and draft.sentences:
             # budget spent before the report passed: say so instead of presenting it as verified
@@ -470,7 +537,7 @@ class ResearchRunner:
         return ResearchResult(draft.render(), draft, state.get("plan") or ResearchPlan(()), tuple(state.get("claims", [])),
                               tuple(state.get("metrics", [])), tuple(state.get("sources", [])),
                               tuple(state.get("verify_codes", ())), state.get("stopped", ""),
-                              tuple(state.get("log", [])), tuple(state.get("cost", [])), tuple(path))
+                              tuple(state.get("log", [])), tuple(state.get("cost", [])), tuple(path), interrupts)
 
 
 def run_baseline(search: SearchFn, question: str, *, k: int = 6, max_sentences: int = 5,
