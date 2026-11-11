@@ -15,6 +15,43 @@ START → classify ──research──→ [ RAG node: search → evidence gate 
 - New design decision **D13** and principle **P1** in [the design doc](docs/DESIGN.ko.md). Code: `rag/guardrail_graph.py`. Details: [below](#langgraph-guardrail-added-2026-11-10) and [docs/LANGGRAPH_GUARDRAIL.ko.md](docs/LANGGRAPH_GUARDRAIL.ko.md).
 - Not yet inside the rail: the E2 re-search loop still has its own retry budget (next step).
 
+## LangGraph research graph and swappable domain filters (added 2026-11-11)
+
+The guardrail now runs **route → local RAG → rule filter** with the filter as a plug-in, and research questions go through a
+**division-of-labour graph** instead of one "summarise everything" call.
+
+```text
+plan ─→ retrieve: base | pro | con | limits ─→ refine ─→ extract ─→ compare ─→ coverage ⇄ retrieve_gap (missing metric only)
+                                                                                   └─→ write ─→ verify ⇄ rewrite
+                                                                                                   └─→ finish (or partial report + "not verified" list)
+```
+
+| Piece | What it does | Code |
+| --- | --- | --- |
+| Domain filter contract | `check_input` / `verify` / `finalize`, registered by name; the graph shape never changes per domain | `guard/domain_filter.py` |
+| Research filter | blocks unsupported numbers, uncited or ungrounded sentences, lost causality, dropped conditions, one-sided reports, generic low-density text | `guard/research_filter.py` |
+| Guardrail gates | `screen` before RAG, `verify` after it; fixable issues regenerate within the loop/cost budget; text that keeps failing is never returned | `rag/guardrail_graph.py` |
+| Research graph | State with reducers (claims, metrics, relations, sources); every claim carries source id + character span, invented quotes are dropped; pro/con/limits retrieval; targeted re-search for missing metrics | `rag/research_graph.py`, `core/research.py` |
+| Cost model | each node records the tokens a model call would use; a token cap stops loops; the writer sees a compact State table, not raw documents | `rag/research_graph.py` |
+| Experiment board | configs × synthetic cases, Wilson intervals, cost–quality map, corpus-size break-even, run history | `scripts/research_eval.py`, `scripts/research_board.py` |
+
+Everything above is **rule-based (no model calls)**; model nodes (structured output, local Llama) plug into the same slots next.
+
+First measurement (synthetic, rule-based, *estimated* tokens ≈ chars/2; the baseline is "first sentence of each document", not an LLM):
+
+| | single-pass baseline | research graph (full) |
+| --- | --- | --- |
+| quality, compare set (6 cases) | 41% | 97% |
+| quality, confirm set (3 cases, run once) | 32% | 96% |
+| tokens with +0 / +10 / +60 background docs per case | 452 / 1,788 / 8,438 | 759 / 1,324 / 1,405 |
+
+Loops cost more on small inputs; retrieval wins once the corpus grows (break-even near +10 documents here). More noise also lowers the
+graph's quality (97% → 84%), which is the next thing to fix. Small synthetic samples: tendencies, not proof.
+
+Design: [RESEARCH_GRAPH_DESIGN.ko.md](docs/RESEARCH_GRAPH_DESIGN.ko.md) (decisions in 9, cost optimisation in 10) ·
+filters: [DOMAIN_FILTERS.ko.md](docs/DOMAIN_FILTERS.ko.md) (research now; legal, medical, local administration next) ·
+how to run and read the board: [RESEARCH_EVAL.ko.md](docs/RESEARCH_EVAL.ko.md).
+
 **A reusable search and brief-building module: hybrid retrieval, an edge-preserving "equalizer", and a LangGraph pipeline that keeps an author's original ideas intact when a long draft is shrunk for a small local model.**
 
 [한국어 README](README.ko.md) · [Design (ko)](docs/DESIGN.ko.md) · [Design review](docs/DESIGN_REVIEW.ko.md) · [Study guide (dark PDF)](docs/EQUALIZER_STUDY_DARK.pdf)
@@ -105,6 +142,7 @@ The generator, embedder and reranker are interfaces, so a local model can be swa
 | E5 + memvid retrieval | **measured** | synthetic 10 docs / 30 chunks: Hit@1 keyword 12/14, vector 14/14 on the compare set; 5/6 vs 6/6 on the confirm set; query embedding ≈ 0.18–0.20 s on CPU, search < 2 ms |
 | Brief prototype (Draft PR) | **prototype** | fake embedder, 41.6 synthetic pages: recall head-cut 0.0, BM25 0.467, vector 0.445, hybrid 0.943 |
 | Ontology parser, two knobs, edge score, protected path, Token Diet | design | review complete, not implemented |
+| Research graph vs single-pass baseline | **measured (synthetic, rule-based)** | 9 synthetic cases: quality 41% → 97% (compare), 32% → 96% (confirm); estimated tokens, baseline is not an LLM |
 | Real Llama/Qwen summary quality | not run | planned in M5 |
 
 Synthetic, small samples: tendencies, not proof.
@@ -129,4 +167,4 @@ M0–M1 package skeleton and retrieval, reproduce the B02b result here · M2 emb
 
 ## Documents
 
-[DESIGN_REVIEW.ko.md](docs/DESIGN_REVIEW.ko.md) · [MODULE_DESIGN.ko.md](docs/MODULE_DESIGN.ko.md) · [Study guide PDF](docs/EQUALIZER_STUDY_DARK.pdf) · [diagram sources](docs/diagrams) · [legacy hybrid README](docs/legacy)
+[RESEARCH_GRAPH_DESIGN.ko.md](docs/RESEARCH_GRAPH_DESIGN.ko.md) · [DOMAIN_FILTERS.ko.md](docs/DOMAIN_FILTERS.ko.md) · [RESEARCH_EVAL.ko.md](docs/RESEARCH_EVAL.ko.md) · [LANGGRAPH_GUARDRAIL.ko.md](docs/LANGGRAPH_GUARDRAIL.ko.md) · [DESIGN_REVIEW.ko.md](docs/DESIGN_REVIEW.ko.md) · [MODULE_DESIGN.ko.md](docs/MODULE_DESIGN.ko.md) · [Study guide PDF](docs/EQUALIZER_STUDY_DARK.pdf) · [diagram sources](docs/diagrams) · [legacy hybrid README](docs/legacy)
