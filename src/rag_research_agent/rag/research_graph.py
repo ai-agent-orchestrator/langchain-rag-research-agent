@@ -66,6 +66,7 @@ class ResearchConfig:
     extractor: str = "rule"        # "rule" | "llm" (requires model and masker)
     planner: Literal["rule", "llm"] = "rule"  # requires planner_model and masker
     review_plan: bool = False       # interrupt after planning; requires a checkpointer and thread_id
+    drop_generic: bool = False      # omit cliche-heavy paragraphs without numbers/cause/conditions
 
 
 # ------------------------------------------------------------------ rule nodes (pure)
@@ -364,12 +365,37 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
 
     def refine_node(s: ResearchState):
         kept, dropped = [], 0
+        generic_dropped = 0
         for src in s.get("pending", []):
             if _INJECTION.search(src.text):
                 dropped += 1
                 continue
+            if cfg.drop_generic:
+                # Blank lines delimit paragraphs. Replace discarded characters with spaces
+                # so extractors still return offsets into the original, retained source.
+                def filter_paragraph(match):
+                    nonlocal generic_dropped
+                    text = match.group(0)
+                    sentences = [m.group(0).strip() for m in _SENT.finditer(text)
+                                 if len(m.group(0).strip()) >= 6]
+                    generic = sum(any(cue in sentence.lower() for cue in CLICHE_CUES)
+                                  for sentence in sentences)
+                    if (sentences and generic * 2 >= len(sentences)
+                            and not re.search(r"\d", text) and kind_of(text) == "claim"):
+                        generic_dropped += 1
+                        return re.sub(r"[^\r\n]", " ", text)
+                    return text
+
+                text = re.sub(r"\S.*?(?=\r?\n[ \t]*\r?\n|\Z)", filter_paragraph,
+                              src.text, flags=re.S)
+                if not text.strip():
+                    continue
+                src = replace(src, text=text)
             kept.append(src)
-        return {"pending": kept, "log": [f"REFINE:keep={len(kept)},drop_injection={dropped}"]}
+        codes = [f"REFINE:keep={len(kept)},drop_injection={dropped}"]
+        if cfg.drop_generic:
+            codes.append(f"REFINE:DROP_GENERIC:{generic_dropped}")
+        return {"pending": kept, "log": codes}
 
     def extract_node(s: ResearchState):
         known = {c.claim_id for c in s.get("claims", [])}
