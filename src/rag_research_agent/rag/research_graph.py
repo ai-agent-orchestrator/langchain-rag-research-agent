@@ -67,6 +67,10 @@ class ResearchConfig:
     planner: Literal["rule", "llm"] = "rule"  # requires planner_model and masker
     review_plan: bool = False       # interrupt after planning; requires a checkpointer and thread_id
     drop_generic: bool = False      # omit cliche-heavy paragraphs without numbers/cause/conditions
+    rewrite_codes: frozenset[str] | None = None  # None: all non-GAP codes (legacy); empty: none
+    gap_first: bool = True          # priority when both verifier routes are available
+    per_node_token_cap: int | None = None  # input + output estimate per invocation; stop after node
+    stop_if_no_progress: bool = False  # any code recurring in consecutive verifications
 
 
 PlannerFn = Callable[[str, tuple[str, ...], ResearchConfig], ResearchPlan]
@@ -333,6 +337,9 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
     """
     if cfg.review_plan and checkpointer is None:
         raise ValueError("review_plan requires a checkpointer")
+    if cfg.per_node_token_cap is not None and (
+            type(cfg.per_node_token_cap) is not int or cfg.per_node_token_cap < 1):
+        raise ValueError("per_node_token_cap must be a positive integer or None")
     if cfg.planner not in ("rule", "llm"):
         raise ValueError("unknown planner")
     model_planner = None
@@ -499,9 +506,16 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
         codes = call_plugin("verifier", verifier, verify_report, plugin_codes,
                             s["draft"], s["plan"], s.get("claims", []), s.get("metrics", []),
                               expect_balance=cfg.stance_split)
-        return {"verify_codes": codes, "log": plugin_codes + ["VERIFY:" + (",".join(codes) if codes else "PASS")]}
+        update = {"verify_codes": codes,
+                  "log": plugin_codes + ["VERIFY:" + (",".join(codes) if codes else "PASS")]}
+        if cfg.stop_if_no_progress and set(codes) & set(s.get("verify_codes", ())):
+            update["stopped"] = "NO_PROGRESS"
+            update["log"].append("STOP:NO_PROGRESS")
+        return update
 
     def after_coverage(s: ResearchState) -> str:
+        if s.get("stopped"):
+            return "finish"
         if cfg.gap_loop and gap_open(s) and _cost(s) < cfg.max_shadow_tokens:
             return "retrieve_gap"
         if cfg.no_con_policy == "stop" and no_con(s):
@@ -510,14 +524,20 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
 
     def after_verify(s: ResearchState) -> str:
         codes = s.get("verify_codes", ())
-        if not codes:
+        if s.get("stopped") or not codes:
             return "finish"
         if _cost(s) >= cfg.max_shadow_tokens:
             return "finish"
-        if cfg.gap_loop and any(c.startswith("GAP:") for c in codes) and gap_open(s):
+        can_gap = cfg.gap_loop and any(c.startswith("GAP:") for c in codes) and gap_open(s)
+        can_rewrite = (cfg.rewrite_loop and s.get("rewrites", 0) < cfg.max_rewrites
+                       and any(not c.startswith("GAP:")
+                               and (cfg.rewrite_codes is None or c in cfg.rewrite_codes) for c in codes))
+        if can_gap and (cfg.gap_first or not can_rewrite):
             return "retrieve_gap"
-        if cfg.rewrite_loop and s.get("rewrites", 0) < cfg.max_rewrites and any(not c.startswith("GAP:") for c in codes):
+        if can_rewrite:
             return "rewrite"
+        if can_gap:
+            return "retrieve_gap"
         return "finish"
 
     def rewrite_node(s: ResearchState):
@@ -530,11 +550,19 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
         return sum(t for _, _, t in s.get("cost", []))
 
     def checkpoint_node(fn):
-        if checkpointer is None:
+        if checkpointer is None and cfg.per_node_token_cap is None:
             return fn
 
         def run(s: ResearchState):
-            return _checkpoint_state(fn(_checkpoint_state(s, restore=True)))
+            live = _checkpoint_state(s, restore=True) if checkpointer is not None else s
+            update = fn(live)
+            # Keep the full estimate: clipping cost would under-report the work done.
+            # This is a post-node shadow budget, not an injected model's max_tokens.
+            if (cfg.per_node_token_cap is not None
+                    and sum(t for _, _, t in update.get("cost", [])) >= cfg.per_node_token_cap):
+                update["stopped"] = "PER_NODE_TOKEN_CAP"
+                update["log"] = update.get("log", []) + ["STOP:PER_NODE_TOKEN_CAP"]
+            return _checkpoint_state(update) if checkpointer is not None else update
         return run
 
     def checkpoint_route(fn):
@@ -546,6 +574,17 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
         return route
 
     g = StateGraph(ResearchState)
+
+    def forward(source: str, targets: str | list[str]):
+        if cfg.per_node_token_cap is None:
+            for target in ([targets] if isinstance(targets, str) else targets):
+                g.add_edge(source, target)
+        else:
+            def route(s):
+                return END if s.get("stopped") else targets
+            destinations = [targets] if isinstance(targets, str) else targets
+            g.add_conditional_edges(source, checkpoint_route(route),
+                                    {node: node for node in [*destinations, END]})
     for name, fn in [("plan", plan_node), ("retrieve", retrieve_node), ("refine", refine_node),
                      ("extract", extract_node), ("compare", compare_node), ("coverage", coverage_node),
                      ("retrieve_gap", retrieve_gap_node), ("write", write_node), ("verify", verify_node),
@@ -557,30 +596,32 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
     retrieval_start = "plan"
     if cfg.review_plan:
         g.add_node("review_plan", checkpoint_node(review_plan_node))
-        g.add_edge("plan", "review_plan")
+        forward("plan", "review_plan")
         retrieval_start = "review_plan"
     if cfg.parallel_branches:
         branch_names = []
         for index, (branch, suffix) in enumerate(branches):
             name = "retrieve_" + branch
             g.add_node(name, checkpoint_node(branch_node(index, suffix)))
-            g.add_edge(retrieval_start, name)
             branch_names.append(name)
+        forward(retrieval_start, branch_names)
         g.add_node("join_retrieval", checkpoint_node(join_retrieval))
         g.add_edge(branch_names, "join_retrieval")
-        g.add_edge("join_retrieval", "refine")
+        forward("join_retrieval", "refine")
     else:
-        g.add_edge(retrieval_start, "retrieve")
-        g.add_edge("retrieve", "refine")
-    g.add_edge("retrieve_gap", "refine")
-    g.add_edge("refine", "extract")
-    g.add_edge("extract", "compare")
-    g.add_edge("compare", "coverage")
-    g.add_conditional_edges("coverage", checkpoint_route(after_coverage),
-                            {"retrieve_gap": "retrieve_gap", "write": "write", "stop_no_con": "stop_no_con"})
-    g.add_edge("write", "verify")
+        forward(retrieval_start, "retrieve")
+        forward("retrieve", "refine")
+    forward("retrieve_gap", "refine")
+    forward("refine", "extract")
+    forward("extract", "compare")
+    forward("compare", "coverage")
+    coverage_routes = {"retrieve_gap": "retrieve_gap", "write": "write", "stop_no_con": "stop_no_con"}
+    if cfg.per_node_token_cap is not None:
+        coverage_routes["finish"] = END
+    g.add_conditional_edges("coverage", checkpoint_route(after_coverage), coverage_routes)
+    forward("write", "verify")
     g.add_conditional_edges("verify", checkpoint_route(after_verify), {"finish": END, "retrieve_gap": "retrieve_gap", "rewrite": "rewrite"})
-    g.add_edge("rewrite", "write")
+    forward("rewrite", "write")
     g.add_edge("stop_no_con", END)
     return g.compile(checkpointer=checkpointer)
 
@@ -662,6 +703,8 @@ class ResearchRunner:
         if state.get("verify_codes") and draft.sentences:
             # budget spent before the report passed: say so instead of presenting it as verified
             draft = Draft(draft.sentences + (ReportSentence("검수 미통과 항목: " + ", ".join(state["verify_codes"]), note=True),))
+        if state.get("stopped") in ("PER_NODE_TOKEN_CAP", "NO_PROGRESS"):
+            draft = Draft(draft.sentences + (ReportSentence("연구 중단: " + state["stopped"], note=True),))
         return ResearchResult(draft.render(), draft, state.get("plan") or ResearchPlan(()), tuple(state.get("claims", [])),
                               tuple(state.get("metrics", [])), tuple(state.get("sources", [])),
                               tuple(state.get("verify_codes", ())), state.get("stopped", ""),
