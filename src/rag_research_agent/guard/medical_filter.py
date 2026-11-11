@@ -13,7 +13,7 @@ import re
 
 from rag_research_agent.guard.domain_filter import BUILTINS, InputDecision, Issue, Verdict, register
 
-VERSION = "medical-filter/1"
+VERSION = "medical-filter/2"
 EMERGENCY_ANSWER = "응급 신호가 있습니다. 즉시 119에 연락하거나 응급실로 가세요."
 DISCLAIMER = "합성·교육용 정보이며 의료 자문이 아닙니다. 전문의와 상담하세요."
 _EMERGENCY = re.compile(r"흉통|호흡\s*곤란|의식\s*(?:저하|소실)|가슴\s*통증|심정지|심한\s*출혈")
@@ -29,7 +29,7 @@ def _contraindications(text: str) -> set[str]:
     """Explicit 'drug is contraindicated' or 'contraindication: drug' forms only."""
     drugs = set()
     for clause in _CLAUSE.split(text):
-        if re.search(r"금기(?:가|는)?\s*(?:아니|아님)", clause):
+        if re.search(r"금기(?:가|는)?\s*(?:아니|아님|아닙)", clause):
             continue
         for pattern in (_CONTRA_BEFORE, _CONTRA_AFTER):
             for match in pattern.finditer(clause):

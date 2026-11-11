@@ -74,6 +74,17 @@ def test_contraindications_do_not_cross_clauses_or_documents():
     assert MedicalFilter().verify("합성 교육", ("약물A는 금기가 아닙니다.",)).ok
 
 
+@pytest.mark.parametrize("negation", ["아니다", "아니며", "아님", "아닙니다"])
+def test_contraindication_negation_in_evidence_and_answer(negation):
+    domain = MedicalFilter()
+    negative = f"약물A는 금기가 {negation}."
+    positive = "약물A는 금기입니다."
+    assert domain.verify("합성 교육", (negative,)).ok
+    verdict = domain.verify(negative, (positive,))
+    assert verdict.codes == ("CONTRAINDICATION_DROPPED",) and verdict.retryable
+    assert domain.verify(positive, (positive,)).ok
+
+
 @pytest.mark.parametrize("dose", ["15 mg", "5 g", "2.5 mg", "3 정", "2 캡슐", "4 mL", "8 mcg"])
 def test_unsupported_dose_values_and_units(dose):
     verdict = MedicalFilter().verify(f"약물B 용량은 {dose}입니다.", ("약물B 용량은 5 mg입니다.",))
