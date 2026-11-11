@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 TEMPLATE = r"""<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -22,6 +23,8 @@ th{color:var(--muted);font-weight:600}.num{text-align:right;font-variant-numeric
 .bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden}.bar>i{display:block;height:100%;background:var(--accent)}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}select{max-width:100%;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 6px}
 svg text{fill:var(--muted);font-size:11px}.legend span{margin-right:12px;font-size:12px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.reports{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.reports pre{color:var(--ink)}
+@media(max-width:650px){.reports{grid-template-columns:1fr}}
 </style></head><body><main>
 <h1>Research Graph Board</h1>
 <div class="muted" id="meta"></div>
@@ -44,6 +47,12 @@ svg text{fill:var(--muted);font-size:11px}.legend span{margin-right:12px;font-si
 <h2>문항별 결과 <span class="tag">펼쳐서 보고서·경로 보기</span></h2><div class="panel scroll"><table id="cases"></table></div>
 
 <h2>실행 기록</h2><div class="panel"><svg id="history" viewBox="0 0 640 220" width="100%" role="img" aria-label="quality history"></svg><div class="scroll"><table id="runs"></table></div></div>
+<h2>보고서 비교</h2><div class="panel">
+<div class="row"><label>문항 <select id="compareCase"></select></label>
+<label>왼쪽 설정 <select id="compareLeft"></select></label>
+<label>오른쪽 설정 <select id="compareRight"></select></label></div>
+<p class="muted">정답 항목: 빨강은 누락, 초록은 반영, 회색은 미검증입니다. 반대 근거는 기존 평가와 같이 하나 이상 반영했는지 표시합니다.</p>
+<div id="compareReports" class="reports"></div></div>
 </main>
 <script>
 const RUNS = __RUNS__;
@@ -68,7 +77,34 @@ function draw(i){
     <div class="big">${pct(s.quality)}</div><div class="sub">품질(지표·인과·조건·균형 평균)</div>
     <div class="sub">추정 토큰 ${Math.round(s.tokens_mean)}${dt?` · 기준선의 <b class="${dt<1?"good":"warn"}">${dt.toFixed(2)}배</b>`:""}</div>
     <div class="sub">루프 평균 ${s.loops_mean.toFixed(1)} · 검수 통과 ${s.verify_pass}/${s.n_cases}${dq!=null?` · 품질 <b class="${dq>0?"good":"bad"}">${dq>0?"+":""}${Math.round(dq*100)}p</b>`:""}</div></div>`}).join("");
-  scatter(cfgs); breakdown(cfgs); cases(cfgs); sweep(run.sweep||[]);
+  scatter(cfgs); breakdown(cfgs); cases(cfgs); sweep(run.sweep||[]); comparison(cfgs);
+}
+function reportPanel(c, name){
+  if(!c) return `<article class="panel"><h3>${esc(name||"설정 없음")}</h3><p class="muted">이 문항의 보고서 없음</p></article>`;
+  const gold=c.gold||{}, items=[];
+  const item=(label,hit)=>items.push(`<li class="${hit===false?"bad":hit===true?"good":"muted"}">${hit===false?"누락":hit===true?"반영":"미검증"}: ${esc(label)}</li>`);
+  const metrics=gold.metrics||Object.fromEntries(Object.keys(c.metric_hits||{}).map(k=>[k,""]));
+  Object.entries(metrics).forEach(([k,v])=>item(`지표: ${k} ${v}`, (c.metric_hits||{})[k]));
+  for(const [key,label] of [["causal","인과"],["constraints","조건"]]){
+    const labels=gold[key]||(c[key]||[]).map((_,i)=>`항목 ${i+1}`);
+    labels.forEach((v,i)=>item(`${label}: ${Array.isArray(v)?v.join(" → "):v}`, (c[key]||[])[i]));
+  }
+  const con=gold.con;
+  if(con && con.length) item(`반대 근거 (하나 이상): ${con.join(" / ")}`, (c.balance||[])[0]);
+  else if(con || c.no_con_case) items.push('<li class="muted">반대 근거: 정답에 없음 (평가 제외)</li>');
+  else (c.balance||[]).forEach(v=>item("반대 근거",v));
+  return `<article class="panel"><h3>${esc(name)}</h3><p>${esc(c.question||c.case)}</p><ul>${items.join("")}</ul><pre>${esc(c.report||"(빈 보고서)")}</pre></article>`;
+}
+function comparison(cfgs){
+  const names=Object.keys(cfgs), ids=[...new Set(names.flatMap(n=>cfgs[n].cases.map(c=>c.case)))];
+  const question=document.getElementById("compareCase"), left=document.getElementById("compareLeft"), right=document.getElementById("compareRight");
+  const options=(select,values,preferred)=>{
+    select.replaceChildren(...values.map(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;return o}));
+    select.value=values.includes(preferred)?preferred:(values[0]||"");
+  };
+  options(question,ids,question.value); options(left,names,"baseline_single"); options(right,names,names.includes("graph_full")?"graph_full":names[1]);
+  const update=()=>{document.getElementById("compareReports").innerHTML=[left,right].map(s=>reportPanel(cfgs[s.value]?.cases.find(c=>c.case===question.value),s.value)).join("")};
+  question.onchange=left.onchange=right.onchange=update; update();
 }
 function scatter(cfgs){
   const svg=document.getElementById("scatter"), W=640,H=300,L=50,B=36,T=12,R=16;
@@ -143,4 +179,17 @@ draw(RUNS.length-1); history();
 
 
 def render(runs: list[dict]) -> str:
-    return TEMPLATE.replace("__RUNS__", json.dumps(runs, ensure_ascii=False).replace("</", "<\\/"))
+    # Old runs contain scores only. Attach gold only for the matching dataset
+    # version; never invent gold text for an unknown historical dataset.
+    path = Path(__file__).resolve().parents[1] / "evals" / "research" / "cases.ko.json"
+    dataset = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    enriched = json.loads(json.dumps(runs))
+    for run in enriched:
+        known = {c["id"]: c for c in dataset.get("cases", [])} if run.get("dataset") == dataset.get("version") else {}
+        for config in run["configs"].values():
+            for case in config["cases"]:
+                source = known.get(case["case"], {})
+                for key in ("gold", "question"):
+                    if key in source:
+                        case.setdefault(key, source[key])
+    return TEMPLATE.replace("__RUNS__", json.dumps(enriched, ensure_ascii=False).replace("</", "<\\/"))
