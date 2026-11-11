@@ -130,9 +130,71 @@ def relevant_claims(plan: ResearchPlan, claims, anchors) -> list:
             and (c.source_id in sources or any(m in c.text for m in plan.required_metrics))]
 
 
-def verify_report(draft: Draft, plan: ResearchPlan, claims, metrics, *, expect_balance: bool = True) -> tuple[str, ...]:
+CLAIM_ALIGNMENT_VERSION = "claim-alignment/1"
+_CLAIM_PART = re.compile(r";|\n|(?<=[.!?。])\s+")
+_CAUSE_LINK = re.compile(
+    r"때문에|으로 인해|로 인해|따라서|그 결과|이어졌다|\b(?:leads to|led to|causes|caused|because|due to|therefore)\b",
+    re.IGNORECASE,
+)
+
+
+def _causal_sides(text: str):
+    link = _CAUSE_LINK.search(text)
+    if link is None:
+        return None
+    left, right = _terms(text[:link.start()]), _terms(text[link.end():])
+    if link.group().lower() in ("because", "due to"):
+        left, right = right, left
+    return (left, right) if left and right else None
+
+
+def _claim_alignment(findings, by_id) -> tuple[str, ...]:
+    """Conservative lexical check, not semantic entailment (alignment rules v1).
+
+    Resolve citations per sentence. Numeric clauses must fit their closest lexical
+    claim, so an unrelated cited claim cannot lend its numbers to another claim.
+    Exact extracts are accepted before heuristics, including multi-clause extracts.
+    """
+    misquoted, overreach = False, False
+    for sentence in findings:
+        cited = [by_id[i] for i in sentence.claim_ids if i in by_id]
+        if not cited:
+            continue  # UNCITED is handled by the existing report checks.
+        if any(sentence.text.strip() == c.text.strip() for c in cited):
+            continue
+        source_terms = set().union(*(_terms(c.text) for c in cited))
+        terms = _terms(sentence.text)
+        if terms and len(terms - source_terms) / len(terms) > 0.5:
+            overreach = True
+        for part in _CLAIM_PART.split(sentence.text):
+            if not part.strip():
+                continue
+            part_terms = _terms(part)
+            # Jaccard similarity ignores numbers, choosing the claim by its words.
+            scores = [len(part_terms & _terms(c.text)) / max(1, len(part_terms | _terms(c.text)))
+                      for c in cited]
+            best = [c for c, score in zip(cited, scores) if score == max(scores)]
+            numbers = _numbers(part)
+            if numbers and not any(numbers <= _numbers(c.text) for c in best):
+                misquoted = True
+            sides = _causal_sides(part)
+            if sides:
+                for c in best:
+                    original = _causal_sides(c.text)
+                    if original:
+                        direct = len(sides[0] & original[0]) + len(sides[1] & original[1])
+                        reverse = len(sides[0] & original[1]) + len(sides[1] & original[0])
+                        if reverse > direct:
+                            overreach = True
+    return tuple(code for code, failed in (("MISQUOTED", misquoted), ("OVERREACH", overreach)) if failed)
+
+
+def verify_report(draft: Draft, plan: ResearchPlan, claims, metrics, *, expect_balance: bool = True,
+                  check_claim_alignment: bool = False) -> tuple[str, ...]:
     """Claim-level check of a report built from graph State (docs/RESEARCH_GRAPH_DESIGN.ko.md 4).
-    Each code tells the graph where to go back: GAP:<metric> -> targeted search, others -> rewrite."""
+    Each code tells the graph where to go back: GAP:<metric> -> targeted search, others -> rewrite.
+    Opt-in alignment adds retryable MISQUOTED and OVERREACH; defaults are unchanged.
+    """
     findings = [s for s in draft.sentences if not s.note]
     if not findings:
         return ("EMPTY_REPORT",)
@@ -147,6 +209,8 @@ def verify_report(draft: Draft, plan: ResearchPlan, claims, metrics, *, expect_b
         codes.append("UNSUPPORTED_NUMBER")
     if any(not s.claim_ids or any(i not in by_id for i in s.claim_ids) for s in findings):
         codes.append("UNCITED")
+    if check_claim_alignment:
+        codes.extend(_claim_alignment(findings, by_id))
     cited = [by_id[i] for s in findings for i in s.claim_ids if i in by_id]
     cited_ids = {c.claim_id for c in cited}
     relevant = relevant_claims(plan, claims, cited)
