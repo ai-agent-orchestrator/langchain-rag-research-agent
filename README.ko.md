@@ -6,7 +6,7 @@
 
 ```text
 START → classify ──research──→ [ RAG 노드: 검색 → 근거 판정 → 답변 ] ──route_by_cost_and_health──→ finish → END
-           │                                  ├──retry (일시 장애, 최대 3회)──→ RAG 노드
+           │                                  ├──retry (일시 장애, RAG 실행 총 3회 한도)──→ RAG 노드
            └──smalltalk──→ finish             └──kill (반복 한도 / 비용 한도 / 노드 오류)──→ END
 ```
 
@@ -104,10 +104,16 @@ START → classify ──research──→ rag ──route_by_cost_and_health─
 | --- | --- | --- |
 | E5 + memvid 검색 | **실측** | 합성 10문서/30청크: 비교 세트 1위 적중 키워드 12/14 대 벡터 14/14, 확인 세트 5/6 대 6/6, 질의 임베딩 CPU 약 0.18~0.20초, 검색 2ms 미만 |
 | 브리프 시제품 (Draft PR) | **시제품** | 가짜 임베더, 합성 41.6쪽: 회수율 앞부분 0.0, BM25 0.467, 벡터 0.445, 혼합 0.943 |
-| 온톨로지 파서, 노브 2개, 엣지 점수, 보호 경로, Token Diet | 설계 | 검수 완료, 구현 전 |
+| 온톨로지 파서, 노브 2개, 엣지 점수, 보호 경로, Token Diet | **규칙 기반 구현** | `ontology/rule_labeler.py`, `knobs/mapper.py`, `edge/scorer.py`, `diet/dieter.py`를 `rag/brief.py`·`rag/stages.py`·`rag/equalizer_graph.py`에서 연결. 기존 `tests/test_equalizer_v0.py`·`tests/test_equalizer_graph.py`에 보호 경로·예산 초과·Python/그래프 결과 일치 검사 있음. 실제 모델 품질은 미검증 |
+| LangGraph 가드레일·도메인 필터 | **구현** | `rag/guardrail_graph.py`의 분류·재시도·비용 한도와 선택적 screen/verify 관문, `guard/domain_filter.py`의 교체 계약, `guard/research_filter.py`의 규칙 기반 검수. 법률·의료·행정 필터는 미구현 |
+| 리서치 그래프·실험 보드 | **규칙 기반 구현 / 경로 시험용** | `rag/research_graph.py`의 관점별 검색·지표 재검색·재작성, `scripts/research_eval.py`·`scripts/research_board.py`의 합성 평가·HTML 보드. 토큰은 추정치이며 실제 LLM 비교는 미검증 |
 | 실제 Llama·Qwen 요약 품질 | 미실행 | M5 예정 |
 
 합성 자료이고 표본이 작아서 증거가 아니라 경향입니다.
+
+가짜 임베더를 쓴 브리프 시제품 수치는 **경로 시험**이며 E5 실측이나 실제 모델 요약 품질과 구분합니다. 위 구현 상태는 코드와 기존 시험 정의를 확인한 것으로, 이번 작업에서 시험 통과나 품질을 새로 측정했다는 뜻은 아닙니다. 신규 개발·평가의 저장소 기본값은 **Chroma**이며, E5 + memvid 행은 과거 실측 기록입니다.
+
+[리서치 그래프](docs/RESEARCH_GRAPH_DESIGN.ko.md)는 계획 → 관점별 검색 → 정제·추출 → 상충 비교 → 지표 충족 검사 → 작성·검수를 규칙 기반 LangGraph로 연결하고, 누락 지표 재검색과 재작성에 한도를 둡니다. [도메인 필터](docs/DOMAIN_FILTERS.ko.md)는 `check_input`·`verify`·`finalize` 계약으로 교체하며 현재 리서치 필터가 구현되어 있습니다. [실험 보드](docs/RESEARCH_EVAL.ko.md)는 합성 문항의 설정별 결과·추정 토큰·루프·Wilson 95% 구간을 보여 줍니다. 현재 평가 검색은 `keyword_search`이며 이 리서치 그래프의 Chroma 어댑터와 실제 모델 작성기는 후속 연결 필요, 실제 모델 대비 품질·비용은 미검증입니다.
 
 ## 재사용 방향
 
