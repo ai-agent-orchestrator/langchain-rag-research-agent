@@ -201,3 +201,44 @@ def test_tampered_manifest_blocks_activation(store):
     with pytest.raises(ValueError, match="content_hash"):
         store.rollback()
     assert store.active_version() == "v2"
+
+
+@pytest.mark.parametrize("fail_add", [False, True])
+def test_publisher_closes_real_writer_even_when_add_fails(store, monkeypatch, fail_add):
+    from chromadb.api.models.Collection import Collection
+
+    publish(store)
+    factory = chroma_pointer._client
+    opened, closed = [], []
+
+    def track_client(path):
+        client = factory(path)
+        opened.append(client)
+        close = client.close
+
+        def track_close():
+            close()
+            closed.append(client)
+
+        monkeypatch.setattr(client, "close", track_close)
+        return client
+
+    monkeypatch.setattr(chroma_pointer, "_client", track_client)
+    if fail_add:
+        def fail_write(*args, **kwargs):
+            raise ValueError("synthetic add failure")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(Collection, "add", fail_write)
+            with pytest.raises(ValueError, match="synthetic add failure"):
+                publish(store, "beta")
+        assert store.active_version() == "v1"
+        assert not (store.root / ".writer.lock").exists()
+        assert (store.root / "versions/v2").is_dir()
+        assert not (store.root / "versions/v2/manifest.json").exists()
+    else:
+        assert publish(store, "beta") == "v2"
+        assert_active(store, "beta")
+    assert len(opened) == 1
+    assert len(closed) == 1
+    assert closed[0] is opened[0]

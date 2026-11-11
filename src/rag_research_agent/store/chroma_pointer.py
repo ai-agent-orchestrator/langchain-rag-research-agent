@@ -22,7 +22,8 @@ import time
 from typing import Sequence
 
 from rag_research_agent.core.contracts import Chunk
-from rag_research_agent.store.chroma_store import ChromaIndex, publish_chroma
+from rag_research_agent.store.chroma_store import ChromaIndex, _client
+from rag_research_agent.store.retry import retry_io
 
 LOGGER = logging.getLogger(__name__)
 
@@ -114,6 +115,35 @@ class ChromaPointer:
         """Caller owns close(); later pointer changes do not alter this handle."""
         return self._open(self.active_version())
 
+    def _write_version(self, path: Path, chunks: Sequence[Chunk],
+                       vectors: Sequence[Sequence[float]], collection: str,
+                       dimension: int) -> None:
+        # publish_chroma opens a writer client in addition to the returned index.
+        # Own this writer explicitly: an unclosed client keeps HNSW files locked
+        # on Windows even after all reader indexes have been closed.
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{1,510}[A-Za-z0-9]", collection):
+            raise ValueError("invalid Chroma collection name")
+        if len(chunks) != len(vectors):
+            raise ValueError("chunks and vectors differ in length")
+        if any(len(vector) != dimension for vector in vectors):
+            raise ValueError("vector dimension mismatch")
+        if len({chunk.chunk_id for chunk in chunks}) != len(chunks):
+            raise ValueError("duplicate chunk_id")
+        client = _client(path)
+        try:
+            col = retry_io(lambda: client.create_collection(
+                collection, metadata={"hnsw:space": "cosine", "dimension": dimension}))
+            for start in range(0, len(chunks), 64):
+                part = chunks[start:start + 64]
+                retry_io(lambda: col.add(
+                    ids=[chunk.chunk_id for chunk in part],
+                    embeddings=[list(map(float, v)) for v in vectors[start:start + 64]],
+                    documents=[chunk.safe_text for chunk in part],
+                    metadatas=[{"document_id": chunk.document_id,
+                                "content_hash": chunk.content_hash} for chunk in part]))
+        finally:
+            client.close()
+
     def publish(self, chunks: Sequence[Chunk], vectors: Sequence[Sequence[float]], *,
                 collection: str, dimension: int) -> str:
         """Build and verify a fresh v<N>, then activate it atomically."""
@@ -131,16 +161,14 @@ class ChromaPointer:
             path = self._version_path(version)
             (allocated / version).touch(exist_ok=False)
             path.mkdir()  # reservation: never reuse or remove a failed build here
-            index = publish_chroma(chunks, vectors, path=path, collection=collection,
-                                   dimension=dimension)
-            try:
-                with (path / "manifest.json").open("x", encoding="utf-8") as handle:
-                    json.dump({"collection": collection, "dimension": dimension,
-                               "chunks": [asdict(c) for c in chunks]}, handle)
-                    handle.flush()
-                    os.fsync(handle.fileno())
-            finally:
-                index.close()
+            self._write_version(path, chunks, vectors, collection, dimension)
+            with (path / "manifest.json").open("x", encoding="utf-8") as handle:
+                json.dump({"collection": collection, "dimension": dimension,
+                           "chunks": [asdict(c) for c in chunks]}, handle)
+                handle.flush()
+                os.fsync(handle.fileno())
+            index = self._open(version)
+            index.close()
             self._replace_pointer(version)
             return version
 
