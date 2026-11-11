@@ -12,7 +12,7 @@ from __future__ import annotations
 
 MATURITY = "incubating"
 
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 import operator
 import re
 from typing import Annotated, Callable, Literal, Optional, TypedDict
@@ -190,8 +190,35 @@ def lead_baseline(sources: list[SourceRef], max_sentences: int) -> Draft:
 
 # ------------------------------------------------------------------ state
 def _merge_sources(old: list, new: list) -> list:
-    seen = {s.source_id for s in old}
-    return old + [s for s in new if s.source_id not in seen and not seen.add(s.source_id)]
+    # Checkpoint channels contain plain records; live nodes use SourceRef objects.
+    def source_id(source):
+        return source["source_id"] if isinstance(source, dict) else source.source_id
+
+    seen = {source_id(s) for s in old}
+    return old + [s for s in new if source_id(s) not in seen and not seen.add(source_id(s))]
+
+
+def _checkpoint_state(state: dict, *, restore: bool = False) -> dict:
+    """Keep application dataclasses out of saver serialization and reconstruct real types.
+
+    Use explicit state fields rather than importing classes named by persisted data.
+    The supplied saver and its serializer remain owned by the caller.
+    """
+    result = dict(state)
+    if "plan" in result and result["plan"] is not None:
+        plan = result["plan"]
+        result["plan"] = (ResearchPlan(tuple(plan["required_metrics"]),
+                                       tuple(tuple(item) for item in plan["origin"]),
+                                       tuple(plan["perspectives"])) if restore else asdict(plan))
+    for field, cls in (("sources", SourceRef), ("pending", SourceRef), ("claims", Claim),
+                       ("metrics", Metric), ("relations", Relation)):
+        if field in result:
+            result[field] = [cls(**item) if restore else asdict(item) for item in result[field]]
+    if "draft" in result and result["draft"] is not None:
+        draft = result["draft"]
+        result["draft"] = (Draft(tuple(ReportSentence(item["text"], tuple(item["claim_ids"]), item["note"])
+                                      for item in draft["sentences"])) if restore else asdict(draft))
+    return result
 
 
 class ResearchState(TypedDict, total=False):
@@ -419,6 +446,22 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
     def _cost(s: ResearchState) -> int:
         return sum(t for _, _, t in s.get("cost", []))
 
+    def checkpoint_node(fn):
+        if checkpointer is None:
+            return fn
+
+        def run(s: ResearchState):
+            return _checkpoint_state(fn(_checkpoint_state(s, restore=True)))
+        return run
+
+    def checkpoint_route(fn):
+        if checkpointer is None:
+            return fn
+
+        def route(s: ResearchState):
+            return fn(_checkpoint_state(s, restore=True))
+        return route
+
     g = StateGraph(ResearchState)
     for name, fn in [("plan", plan_node), ("retrieve", retrieve_node), ("refine", refine_node),
                      ("extract", extract_node), ("compare", compare_node), ("coverage", coverage_node),
@@ -426,21 +469,21 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
                      ("rewrite", rewrite_node), ("stop_no_con", stop_no_con_node)]:
         if name == "retrieve" and cfg.parallel_branches:
             continue
-        g.add_node(name, fn)
+        g.add_node(name, checkpoint_node(fn))
     g.add_edge(START, "plan")
     retrieval_start = "plan"
     if cfg.review_plan:
-        g.add_node("review_plan", review_plan_node)
+        g.add_node("review_plan", checkpoint_node(review_plan_node))
         g.add_edge("plan", "review_plan")
         retrieval_start = "review_plan"
     if cfg.parallel_branches:
         branch_names = []
         for index, (branch, suffix) in enumerate(branches):
             name = "retrieve_" + branch
-            g.add_node(name, branch_node(index, suffix))
+            g.add_node(name, checkpoint_node(branch_node(index, suffix)))
             g.add_edge(retrieval_start, name)
             branch_names.append(name)
-        g.add_node("join_retrieval", join_retrieval)
+        g.add_node("join_retrieval", checkpoint_node(join_retrieval))
         g.add_edge(branch_names, "join_retrieval")
         g.add_edge("join_retrieval", "refine")
     else:
@@ -450,10 +493,10 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
     g.add_edge("refine", "extract")
     g.add_edge("extract", "compare")
     g.add_edge("compare", "coverage")
-    g.add_conditional_edges("coverage", after_coverage,
+    g.add_conditional_edges("coverage", checkpoint_route(after_coverage),
                             {"retrieve_gap": "retrieve_gap", "write": "write", "stop_no_con": "stop_no_con"})
     g.add_edge("write", "verify")
-    g.add_conditional_edges("verify", after_verify, {"finish": END, "retrieve_gap": "retrieve_gap", "rewrite": "rewrite"})
+    g.add_conditional_edges("verify", checkpoint_route(after_verify), {"finish": END, "retrieve_gap": "retrieve_gap", "rewrite": "rewrite"})
     g.add_edge("rewrite", "write")
     g.add_edge("stop_no_con", END)
     return g.compile(checkpointer=checkpointer)
@@ -520,6 +563,8 @@ class ResearchRunner:
                     interrupts = tuple(update)
                     continue
                 path.append(node)
+                if self.checkpointer is not None:
+                    update = _checkpoint_state(update or {}, restore=True)
                 for key, value in (update or {}).items():
                     if key in ("sources",):
                         state[key] = _merge_sources(state.get(key, []), value)
@@ -529,7 +574,7 @@ class ResearchRunner:
                         state[key] = value
         if self.checkpointer is not None:
             # Resume updates omit completed nodes; read the full reducer state from the saver.
-            state = dict(self.graph.get_state(config).values)
+            state = _checkpoint_state(self.graph.get_state(config).values, restore=True)
         draft = state.get("draft") or Draft()
         if state.get("verify_codes") and draft.sentences:
             # budget spent before the report passed: say so instead of presenting it as verified

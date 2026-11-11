@@ -4,6 +4,7 @@ from dataclasses import replace
 import pytest
 from langgraph.checkpoint.memory import MemorySaver
 
+from rag_research_agent.core.research import Claim, Draft, Metric, Relation, ResearchPlan, SourceRef
 from rag_research_agent.rag import research_graph
 from rag_research_agent.rag.research_graph import ResearchConfig, ResearchRunner, keyword_search
 
@@ -110,3 +111,34 @@ def test_resume_without_review_is_rejected():
     runner.run("매출 분석", thread_id="no-review-a1")
     with pytest.raises(ValueError, match="plan review"):
         runner.resume("no-review-a1", required_metrics=[])
+
+
+@pytest.mark.parametrize("parallel", [False, True])
+def test_saved_records_restore_real_types_through_gap_loops(parallel):
+    corpus = {"doc-a1": "매출은 비용 증가 때문에 18% 감소했다. 다만 국내 대상에 한정된다."}
+    cfg = replace(CONFIG, review_plan=True, gap_loop=True, parallel_branches=parallel)
+    saver = MemorySaver()
+    original_serializer = saver.serde
+    runner = ResearchRunner(keyword_search(corpus), cfg, checkpointer=saver)
+    runner.run("매출 분석", ("매출",), thread_id="records-a1")
+    config = {"configurable": {"thread_id": "records-a1"}}
+    paused_state = runner.graph.get_state(config).values
+    assert isinstance(paused_state["plan"], dict)
+    assert paused_state["plan"]["required_metrics"] == ("매출",)
+
+    restored_runner = ResearchRunner(keyword_search(corpus), cfg, checkpointer=saver)
+    result = restored_runner.resume("records-a1", required_metrics=["매출", "거래량"])
+    assert isinstance(result.plan, ResearchPlan)
+    assert isinstance(result.draft, Draft)
+    assert result.claims and all(isinstance(item, Claim) for item in result.claims)
+    assert result.metrics and all(isinstance(item, Metric) for item in result.metrics)
+    assert result.sources and all(isinstance(item, SourceRef) for item in result.sources)
+    assert "retrieve_gap" in result.path
+    saved_state = restored_runner.graph.get_state(config).values
+    assert saved_state["relations"]
+    assert all(isinstance(item, dict) for field in ("sources", "claims", "metrics", "relations")
+               for item in saved_state[field])
+    restored_state = research_graph._checkpoint_state(saved_state, restore=True)
+    assert all(isinstance(item, Relation) for item in restored_state["relations"])
+    assert result.draft.sentences[:len(restored_state["draft"].sentences)] == restored_state["draft"].sentences
+    assert saver.serde is original_serializer
