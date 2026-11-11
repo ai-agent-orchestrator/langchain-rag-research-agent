@@ -2,7 +2,7 @@
 from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
-from threading import Barrier
+from threading import Barrier, Event
 
 import pytest
 
@@ -242,3 +242,61 @@ def test_publisher_closes_real_writer_even_when_add_fails(store, monkeypatch, fa
     assert len(opened) == 1
     assert len(closed) == 1
     assert closed[0] is opened[0]
+
+
+@pytest.mark.parametrize("operation", ["open", "close"])
+def test_client_lifecycle_is_serialized_across_pointer_instances(store, monkeypatch, operation):
+    from rag_research_agent.store import chroma_store
+
+    publish(store)
+    old = store.open_active()
+    entered, release, contender_started, contender_entered = (
+        Event(), Event(), Event(), Event())
+    factory = chroma_store._client
+    close = old._client.close
+
+    def paused(call):
+        entered.set()
+        assert release.wait(timeout=15)
+        return call()
+
+    def tracked_factory(path):
+        if contender_started.is_set():
+            contender_entered.set()
+        elif operation == "open":
+            return paused(lambda: factory(path))
+        return factory(path)
+
+    monkeypatch.setattr(chroma_store, "_client", tracked_factory)
+    if operation == "close":
+        monkeypatch.setattr(old._client, "close", lambda: paused(close))
+
+    def contender():
+        contender_started.set()
+        return ChromaPointer(store.root).open_active()
+
+    first_index = second_index = None
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first = pool.submit(store.open_active if operation == "open" else old.close)
+            try:
+                assert entered.wait(timeout=15)
+                second = pool.submit(contender)
+                assert contender_started.wait(timeout=15)
+                # The actual Chroma factory must wait for construction/shutdown
+                # to finish, even for a separate ChromaPointer instance.
+                assert not contender_entered.wait(timeout=0.1)
+            finally:
+                release.set()
+                first_index = first.result(timeout=15)
+                if contender_started.is_set():
+                    second_index = second.result(timeout=15)
+        assert contender_entered.is_set()
+        assert second_index.vector_count() == 1
+        assert second_index.search_vector([1.0, 0.0])[0][0].safe_text == "alpha"
+    finally:
+        if first_index is not None:
+            first_index.close()
+        if second_index is not None:
+            second_index.close()
+        old.close()

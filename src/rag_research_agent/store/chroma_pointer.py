@@ -19,6 +19,7 @@ import re
 import shutil
 import tempfile
 import time
+from threading import RLock
 from typing import Sequence
 
 from rag_research_agent.core.contracts import Chunk
@@ -26,6 +27,20 @@ from rag_research_agent.store.chroma_store import ChromaIndex, _client
 from rag_research_agent.store.retry import retry_io
 
 LOGGER = logging.getLogger(__name__)
+# Chroma's shared-system cache creation and last-owner shutdown are separate
+# from its refcount lock. Serialize both across all pointer instances so a new
+# reader cannot attach while the last owner is stopping that same system.
+_CLIENT_LIFECYCLE = RLock()
+
+
+class _PointerIndex(ChromaIndex):
+    def __init__(self, *args, **kwargs):
+        with _CLIENT_LIFECYCLE:
+            super().__init__(*args, **kwargs)
+
+    def close(self) -> None:
+        with _CLIENT_LIFECYCLE:
+            super().close()
 
 
 class ChromaPointer:
@@ -101,7 +116,7 @@ class ChromaPointer:
         path = self._version_path(version)
         with (path / "manifest.json").open(encoding="utf-8") as handle:
             manifest = json.load(handle)
-        index = ChromaIndex(path, manifest["collection"],
+        index = _PointerIndex(path, manifest["collection"],
                             [Chunk(**item) for item in manifest["chunks"]],
                             manifest["dimension"])
         try:
@@ -129,7 +144,8 @@ class ChromaPointer:
             raise ValueError("vector dimension mismatch")
         if len({chunk.chunk_id for chunk in chunks}) != len(chunks):
             raise ValueError("duplicate chunk_id")
-        client = _client(path)
+        with _CLIENT_LIFECYCLE:
+            client = _client(path)
         try:
             col = retry_io(lambda: client.create_collection(
                 collection, metadata={"hnsw:space": "cosine", "dimension": dimension}))
@@ -142,7 +158,8 @@ class ChromaPointer:
                     metadatas=[{"document_id": chunk.document_id,
                                 "content_hash": chunk.content_hash} for chunk in part]))
         finally:
-            client.close()
+            with _CLIENT_LIFECYCLE:
+                client.close()
 
     def publish(self, chunks: Sequence[Chunk], vectors: Sequence[Sequence[float]], *,
                 collection: str, dimension: int) -> str:
