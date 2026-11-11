@@ -121,7 +121,10 @@ def test_alignment_codes_follow_real_graph_rewrite_route(monkeypatch, failure):
     result = research_graph.ResearchRunner(
         research_graph.keyword_search({"doc-a1": "매출은 18% 증가했다."}),
         ResearchConfig(stance_split=False, auto_metrics=False),
-    ).run("매출 분석")
+    ).run("매출 분석", checklist=("매출",))
+    assert result.plan.required_metrics == ("매출",)
+    assert calls[0].sentences[0].text == "매출은 18% 증가했다."
+    assert calls[0].sentences[0].claim_ids
     assert any(failure in line for line in result.log)
     assert result.path.count("rewrite") == 1
     assert len(calls) == 2 and result.verify_codes == ()
