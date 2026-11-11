@@ -61,6 +61,7 @@ class ResearchConfig:
     max_rewrites: int = 2
     max_sentences: int = 5          # first-draft budget; feedback can raise it
     max_shadow_tokens: int = 12000  # cost limit (estimated model tokens per request)
+    parallel_branches: bool = False  # requires thread-safe, deterministic, prefix-stable top-k search
 
 
 # ------------------------------------------------------------------ rule nodes (pure)
@@ -194,6 +195,7 @@ class ResearchState(TypedDict, total=False):
     checklist: tuple
     plan: ResearchPlan
     sources: Annotated[list, _merge_sources]
+    branch_hits: Annotated[list, operator.add]  # (branch index, raw ranked hits), parallel retrieval only
     claims: Annotated[list, operator.add]
     metrics: Annotated[list, operator.add]
     relations: Annotated[list, operator.add]
@@ -256,6 +258,34 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
             found += _fetch(q + " " + " ".join(CON_CUES[:4]), "con", cfg.k, known)
             known |= {x.source_id for x in found}
             found += _fetch(q + " " + " ".join(LIMIT_CUES), "limits", cfg.k, known)
+        return {"sources": found, "pending": found, "log": [f"RETRIEVE:{len(found)}"],
+                "cost": [("retrieve", "search", 0)]}
+
+    branches = [("base", "")]
+    if cfg.stance_split:
+        branches += [("pro", " ".join(PRO_CUES[:4])), ("con", " ".join(CON_CUES[:4])),
+                     ("limits", " ".join(LIMIT_CUES))]
+
+    def branch_node(index: int, suffix: str):
+        def retrieve_branch(s: ResearchState):
+            # Earlier branches can add at most index*k unique IDs. Fetch enough ranked
+            # candidates to fill this branch even when all earlier hits overlap.
+            known = {x.source_id for x in s.get("sources", [])}
+            query = s["question"] + (" " + suffix if suffix else "")
+            hits = search(query, cfg.k * (index + 1) + len(known))
+            return {"branch_hits": [(index, hits)]}
+        return retrieve_branch
+
+    def join_retrieval(s: ResearchState):
+        known = {x.source_id for x in s.get("sources", [])}
+        found = []
+        for index, hits in sorted(s.get("branch_hits", []), key=lambda item: item[0]):
+            # Reproduce sequential top-k request truncation and branch precedence.
+            # Do not let completion order affect source text, claims or report order.
+            selected = [SourceRef(sid, text, branches[index][0])
+                        for sid, text in hits[:cfg.k + len(known)] if sid not in known][:cfg.k]
+            found += selected
+            known.update(src.source_id for src in selected)
         return {"sources": found, "pending": found, "log": [f"RETRIEVE:{len(found)}"],
                 "cost": [("retrieve", "search", 0)]}
 
@@ -352,10 +382,23 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
                      ("extract", extract_node), ("compare", compare_node), ("coverage", coverage_node),
                      ("retrieve_gap", retrieve_gap_node), ("write", write_node), ("verify", verify_node),
                      ("rewrite", rewrite_node), ("stop_no_con", stop_no_con_node)]:
+        if name == "retrieve" and cfg.parallel_branches:
+            continue
         g.add_node(name, fn)
     g.add_edge(START, "plan")
-    g.add_edge("plan", "retrieve")
-    g.add_edge("retrieve", "refine")
+    if cfg.parallel_branches:
+        branch_names = []
+        for index, (branch, suffix) in enumerate(branches):
+            name = "retrieve_" + branch
+            g.add_node(name, branch_node(index, suffix))
+            g.add_edge("plan", name)
+            branch_names.append(name)
+        g.add_node("join_retrieval", join_retrieval)
+        g.add_edge(branch_names, "join_retrieval")
+        g.add_edge("join_retrieval", "refine")
+    else:
+        g.add_edge("plan", "retrieve")
+        g.add_edge("retrieve", "refine")
     g.add_edge("retrieve_gap", "refine")
     g.add_edge("refine", "extract")
     g.add_edge("extract", "compare")
