@@ -3,7 +3,7 @@
     plan -> retrieve(base | pro | con) -> refine -> extract -> compare -> coverage --gap--> retrieve_gap
          -> write -> verify --GAP--> retrieve_gap | --style issue--> write | --pass/limit--> finish
 
-- Rule nodes remain the default; extraction can opt into an injected structured-output model.
+- Rule nodes remain the default; planning and extraction accept optional injected models.
 - State accumulates sources, claims, metrics and relations through reducers; nothing is overwritten.
 - Cost: every node records the tokens a model call *would* have used (shadow cost, ~chars/2), so the
   loop cost can be weighed against the prompt saved by retrieval (docs/RESEARCH_GRAPH_DESIGN.ko.md 10).
@@ -15,7 +15,7 @@ MATURITY = "incubating"
 from dataclasses import dataclass, replace
 import operator
 import re
-from typing import Annotated, Callable, Optional, TypedDict
+from typing import Annotated, Callable, Literal, Optional, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
@@ -62,6 +62,7 @@ class ResearchConfig:
     max_shadow_tokens: int = 12000  # cost limit (estimated model tokens per request)
     parallel_branches: bool = False  # requires thread-safe, deterministic, prefix-stable top-k search
     extractor: str = "rule"        # "rule" | "llm" (requires model and masker)
+    planner: Literal["rule", "llm"] = "rule"  # requires planner_model and masker
 
 
 # ------------------------------------------------------------------ rule nodes (pure)
@@ -231,7 +232,15 @@ class ResearchResult:
 
 
 def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(), *,
-                         extractor_model=None, masker=None):
+                         extractor_model=None, planner_model=None, masker=None):
+    if cfg.planner not in ("rule", "llm"):
+        raise ValueError("unknown planner")
+    planner = None
+    if cfg.planner == "llm":
+        from rag_research_agent.rag.research_llm import llm_planner
+        if planner_model is None:
+            raise ValueError("llm planning requires planner_model")
+        planner = llm_planner(planner_model, masker)
     if cfg.extractor not in ("rule", "llm"):
         raise ValueError("unknown extractor")
     extractor = None
@@ -245,9 +254,15 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
         return [(node, kind, est_tokens(text))]
 
     def plan_node(s: ResearchState):
-        plan = plan_rule(s["question"], tuple(s.get("checklist") or ()), cfg)
+        codes = []
+        checklist = tuple(s.get("checklist") or ())
+        if planner is None:
+            plan = plan_rule(s["question"], checklist, cfg)
+            codes = ["PLAN:" + ",".join(f"{m}<{o}>" for m, o in plan.origin)]
+        else:
+            plan = planner(s["question"], checklist, cfg, log=codes)
         return {"plan": plan, "gap_rounds": {}, "rewrites": 0, "feedback": (), "stopped": "",
-                "log": ["PLAN:" + ",".join(f"{m}<{o}>" for m, o in plan.origin)],
+                "log": codes,
                 "cost": spend("plan", "model_in", s["question"])}
 
     def _fetch(query: str, branch: str, k: int, known: set[str]) -> list[SourceRef]:
@@ -428,9 +443,10 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
 
 class ResearchRunner:
     def __init__(self, search: SearchFn, cfg: ResearchConfig = ResearchConfig(), *,
-                 extractor_model=None, masker=None):
+                 extractor_model=None, planner_model=None, masker=None):
         self.cfg, self.search = cfg, search
-        self.graph = build_research_graph(search, cfg, extractor_model=extractor_model, masker=masker)
+        self.graph = build_research_graph(search, cfg, extractor_model=extractor_model,
+                                          planner_model=planner_model, masker=masker)
 
     def run(self, question: str, checklist: tuple[str, ...] = ()) -> ResearchResult:
         with serving_trace_guard():
