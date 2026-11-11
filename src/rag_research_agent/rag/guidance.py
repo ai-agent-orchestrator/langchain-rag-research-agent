@@ -82,6 +82,15 @@ class GuidancePipeline:
         self.output_policy, self.masker = output_policy, masker
 
     async def ainvoke(self, request):
+        reply, _ = await self._run(request)
+        return reply
+
+    async def ainvoke_with_evidence(self, request):
+        """(reply, masked evidence texts) for a domain verifier in rag/guardrail_graph.py.
+        The texts are the same masked safe_text the model saw; empty when nothing was generated."""
+        return await self._run(request)
+
+    async def _run(self, request):
         if not self.enabled:
             raise GuidanceDisabled("RAG is disabled; enable explicitly for synthetic research runs")
         with serving_trace_guard():
@@ -97,7 +106,7 @@ class GuidancePipeline:
             raw_query = build_query(case_type, statement, next_step)
             decision = policy.check(raw_query)
             if not decision.allowed:
-                return GuidanceReply(Status.BLOCKED, "요청을 처리할 수 없습니다.", reason_code=decision.reason)
+                return GuidanceReply(Status.BLOCKED, "요청을 처리할 수 없습니다.", reason_code=decision.reason), ()
             query = build_query(case_type, masker.mask(statement), masker.mask(next_step) if next_step else None)
 
             def checked_output(text):
@@ -143,11 +152,12 @@ class GuidancePipeline:
             state = await build_graph(retrieve, generate).ainvoke({"request_text": query}, config=serving_config())
             if state["draft"] is None:
                 return GuidanceReply(Status.REQUEST_MORE, no_evidence_answer(checked_output),
-                                     retrieval_status=state["retrieval_status"])
+                                     retrieval_status=state["retrieval_status"]), ()
             answer = assemble_answer(state["draft"], state["evidence"], checked_output)
-            return GuidanceReply(Status.OK, answer, self.model_id, EvidenceStatus.FOUND,
-                                 tuple(dict.fromkeys(state["draft"].citation_ids)), state["generation_calls"],
-                                 state["retrieval_status"])
+            reply = GuidanceReply(Status.OK, answer, self.model_id, EvidenceStatus.FOUND,
+                                  tuple(dict.fromkeys(state["draft"].citation_ids)), state["generation_calls"],
+                                  state["retrieval_status"])
+            return reply, tuple(getattr(e, "safe_text", str(e)) for e in state["evidence"])
 
     async def aclose(self):
         if self._owns_worker:
