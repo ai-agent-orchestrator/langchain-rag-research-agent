@@ -205,6 +205,14 @@ def _checkpoint_state(state: dict, *, restore: bool = False) -> dict:
     The supplied saver and its serializer remain owned by the caller.
     """
     result = dict(state)
+    # JSON/MessagePack savers may decode tuples as lists. Restore the public
+    # state contract as well as dataclasses, including nested cost records.
+    if restore:
+        for field in ("checklist", "gaps", "feedback", "verify_codes"):
+            if field in result:
+                result[field] = tuple(result[field])
+        if "cost" in result:
+            result["cost"] = [tuple(item) for item in result["cost"]]
     if "plan" in result and result["plan"] is not None:
         plan = result["plan"]
         result["plan"] = (ResearchPlan(tuple(plan["required_metrics"]),

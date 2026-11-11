@@ -1,16 +1,33 @@
 """Offline path tests using the real research graph and LangGraph MemorySaver."""
 from dataclasses import replace
+import json
 
 import pytest
 from langgraph.checkpoint.memory import MemorySaver
 
-from rag_research_agent.core.research import Claim, Draft, Metric, Relation, ResearchPlan, SourceRef
+from rag_research_agent.core.research import Claim, Draft, Metric, Relation, ReportSentence, ResearchPlan, SourceRef
 from rag_research_agent.rag import research_graph
 from rag_research_agent.rag.research_graph import ResearchConfig, ResearchRunner, keyword_search
 
 
 CORPUS = {"doc-a1": "매출은 18% 증가했다. 거래량은 12% 감소했다."}
 CONFIG = ResearchConfig(auto_metrics=False, stance_split=False, gap_loop=False, rewrite_loop=False)
+
+
+def test_checkpoint_codec_restores_tuple_contract_after_json_round_trip():
+    state = {
+        "plan": ResearchPlan(("매출",), (("매출", "review"),)),
+        "checklist": ("매출",), "gaps": ("거래량",),
+        "feedback": ("GAP:거래량",), "verify_codes": ("GAP:거래량",),
+        "cost": [("plan", "model_in", 7), ("retrieve", "search", 0)],
+        "draft": Draft((ReportSentence("매출은 18% 증가했다.", ("claim-a1",)),)),
+    }
+    records = research_graph._checkpoint_state(state)
+    decoded = json.loads(json.dumps(records))
+    restored = research_graph._checkpoint_state(decoded, restore=True)
+    assert restored == state
+    assert all(isinstance(item, tuple) for item in restored["cost"])
+    assert research_graph._checkpoint_state(restored) == records
 
 
 @pytest.mark.parametrize("parallel", [False, True])
@@ -124,7 +141,8 @@ def test_saved_records_restore_real_types_through_gap_loops(parallel):
     config = {"configurable": {"thread_id": "records-a1"}}
     paused_state = runner.graph.get_state(config).values
     assert isinstance(paused_state["plan"], dict)
-    assert paused_state["plan"]["required_metrics"] == ("매출",)
+    assert research_graph._checkpoint_state(paused_state, restore=True)["plan"] == ResearchPlan(
+        ("매출",), (("매출", "checklist"),))
 
     restored_runner = ResearchRunner(keyword_search(corpus), cfg, checkpointer=saver)
     result = restored_runner.resume("records-a1", required_metrics=["매출", "거래량"])
