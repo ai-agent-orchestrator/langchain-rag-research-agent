@@ -3,7 +3,7 @@
     plan -> retrieve(base | pro | con) -> refine -> extract -> compare -> coverage --gap--> retrieve_gap
          -> write -> verify --GAP--> retrieve_gap | --style issue--> write | --pass/limit--> finish
 
-- Rule nodes remain the default; planning and extraction accept optional injected models.
+- Rule nodes remain the default; five node functions and optional planning/extraction models are injectable.
 - State accumulates sources, claims, metrics and relations through reducers; nothing is overwritten.
 - Cost: every node records the tokens a model call *would* have used (shadow cost, ~chars/2), so the
   loop cost can be weighed against the prompt saved by retrieval (docs/RESEARCH_GRAPH_DESIGN.ko.md 10).
@@ -15,7 +15,7 @@ MATURITY = "incubating"
 from dataclasses import asdict, dataclass, replace
 import operator
 import re
-from typing import Annotated, Callable, Literal, Optional, TypedDict
+from typing import Annotated, Callable, Literal, Optional, Protocol, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -67,6 +67,18 @@ class ResearchConfig:
     planner: Literal["rule", "llm"] = "rule"  # requires planner_model and masker
     review_plan: bool = False       # interrupt after planning; requires a checkpointer and thread_id
     drop_generic: bool = False      # omit cliche-heavy paragraphs without numbers/cause/conditions
+
+
+PlannerFn = Callable[[str, tuple[str, ...], ResearchConfig], ResearchPlan]
+ExtractorFn = Callable[[list[SourceRef], ResearchPlan, set[str]],
+                       tuple[list[Claim], list[Metric], list[Relation]]]
+WriterFn = Callable[[ResearchPlan, list[Claim], tuple[str, ...], ResearchConfig, bool], Draft]
+RefinerFn = Callable[[list[SourceRef], ResearchConfig], tuple[list[SourceRef], list[str]]]
+
+
+class VerifierFn(Protocol):
+    def __call__(self, draft: Draft, plan: ResearchPlan, claims: list[Claim],
+                 metrics: list[Metric], *, expect_balance: bool) -> tuple[str, ...]: ...
 
 
 # ------------------------------------------------------------------ rule nodes (pure)
@@ -189,6 +201,41 @@ def lead_baseline(sources: list[SourceRef], max_sentences: int) -> Draft:
     return Draft(tuple(out[:max_sentences]))
 
 
+def refine_rule(sources: list[SourceRef], cfg: ResearchConfig) -> tuple[list[SourceRef], list[str]]:
+    kept, dropped = [], 0
+    generic_dropped = 0
+    for src in sources:
+        if _INJECTION.search(src.text):
+            dropped += 1
+            continue
+        if cfg.drop_generic:
+            # Blank lines delimit paragraphs. Replace discarded characters with spaces
+            # so extractors still return offsets into the original, retained source.
+            def filter_paragraph(match):
+                nonlocal generic_dropped
+                text = match.group(0)
+                sentences = [m.group(0).strip() for m in _SENT.finditer(text)
+                             if len(m.group(0).strip()) >= 6]
+                generic = sum(any(cue in sentence.lower() for cue in CLICHE_CUES)
+                              for sentence in sentences)
+                if (sentences and generic * 2 >= len(sentences)
+                        and not re.search(r"\d", text) and kind_of(text) == "claim"):
+                    generic_dropped += 1
+                    return re.sub(r"[^\r\n]", " ", text)
+                return text
+
+            text = re.sub(r"\S.*?(?=\r?\n[ \t]*\r?\n|\Z)", filter_paragraph,
+                          src.text, flags=re.S)
+            if not text.strip():
+                continue
+            src = replace(src, text=text)
+        kept.append(src)
+    codes = [f"REFINE:keep={len(kept)},drop_injection={dropped}"]
+    if cfg.drop_generic:
+        codes.append(f"REFINE:DROP_GENERIC:{generic_dropped}")
+    return kept, codes
+
+
 # ------------------------------------------------------------------ state
 def _merge_sources(old: list, new: list) -> list:
     # Checkpoint channels contain plain records; live nodes use SourceRef objects.
@@ -273,25 +320,45 @@ class ResearchResult:
 
 def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(), *,
                          extractor_model=None, planner_model=None, masker=None,
-                         checkpointer: BaseCheckpointSaver | None = None):
+                         checkpointer: BaseCheckpointSaver | None = None,
+                         planner: PlannerFn | None = None, extractor: ExtractorFn | None = None,
+                         writer: WriterFn | None = None, verifier: VerifierFn | None = None,
+                         refiner: RefinerFn | None = None, fallback_on_error: bool = True):
+    """Build the real graph with optional synchronous rule-signature plugins.
+
+    Explicit plugins take precedence over the corresponding LLM option. Only
+    exceptions raised by an explicit plugin are caught; rule failures propagate.
+    Fallback logs contain fixed codes, never exception messages. Plugins receive
+    already-masked inputs and must not mutate them or perform remote tracing.
+    """
     if cfg.review_plan and checkpointer is None:
         raise ValueError("review_plan requires a checkpointer")
     if cfg.planner not in ("rule", "llm"):
         raise ValueError("unknown planner")
-    planner = None
-    if cfg.planner == "llm":
+    model_planner = None
+    if cfg.planner == "llm" and planner is None:
         from rag_research_agent.rag.research_llm import llm_planner
         if planner_model is None:
             raise ValueError("llm planning requires planner_model")
-        planner = llm_planner(planner_model, masker)
+        model_planner = llm_planner(planner_model, masker)
     if cfg.extractor not in ("rule", "llm"):
         raise ValueError("unknown extractor")
-    extractor = None
-    if cfg.extractor == "llm":
+    model_extractor = None
+    if cfg.extractor == "llm" and extractor is None:
         from rag_research_agent.rag.research_llm import llm_extractor
         if extractor_model is None:
             raise ValueError("llm extraction requires extractor_model")
-        extractor = llm_extractor(extractor_model, masker)
+        model_extractor = llm_extractor(extractor_model, masker)
+
+    def call_plugin(name, plugin, rule, codes, *args, **kwargs):
+        if plugin is not None:
+            try:
+                return plugin(*args, **kwargs)
+            except Exception:
+                if not fallback_on_error:
+                    raise
+                codes.append("PLUGIN_FALLBACK:" + name.upper())
+        return rule(*args, **kwargs)
 
     def spend(node: str, kind: str, text: str):
         return [(node, kind, est_tokens(text))]
@@ -299,11 +366,14 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
     def plan_node(s: ResearchState):
         codes = []
         checklist = tuple(s.get("checklist") or ())
-        if planner is None:
+        if planner is not None:
+            plan = call_plugin("planner", planner, plan_rule, codes, s["question"], checklist, cfg)
+            codes.append("PLAN:" + ",".join(f"{m}<{o}>" for m, o in plan.origin))
+        elif model_planner is None:
             plan = plan_rule(s["question"], checklist, cfg)
             codes = ["PLAN:" + ",".join(f"{m}<{o}>" for m, o in plan.origin)]
         else:
-            plan = planner(s["question"], checklist, cfg, log=codes)
+            plan = model_planner(s["question"], checklist, cfg, log=codes)
         return {"plan": plan, "gap_rounds": {}, "rewrites": 0, "feedback": (), "stopped": "",
                 "log": codes,
                 "cost": spend("plan", "model_in", s["question"])}
@@ -364,46 +434,21 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
                 "cost": [("retrieve", "search", 0)]}
 
     def refine_node(s: ResearchState):
-        kept, dropped = [], 0
-        generic_dropped = 0
-        for src in s.get("pending", []):
-            if _INJECTION.search(src.text):
-                dropped += 1
-                continue
-            if cfg.drop_generic:
-                # Blank lines delimit paragraphs. Replace discarded characters with spaces
-                # so extractors still return offsets into the original, retained source.
-                def filter_paragraph(match):
-                    nonlocal generic_dropped
-                    text = match.group(0)
-                    sentences = [m.group(0).strip() for m in _SENT.finditer(text)
-                                 if len(m.group(0).strip()) >= 6]
-                    generic = sum(any(cue in sentence.lower() for cue in CLICHE_CUES)
-                                  for sentence in sentences)
-                    if (sentences and generic * 2 >= len(sentences)
-                            and not re.search(r"\d", text) and kind_of(text) == "claim"):
-                        generic_dropped += 1
-                        return re.sub(r"[^\r\n]", " ", text)
-                    return text
-
-                text = re.sub(r"\S.*?(?=\r?\n[ \t]*\r?\n|\Z)", filter_paragraph,
-                              src.text, flags=re.S)
-                if not text.strip():
-                    continue
-                src = replace(src, text=text)
-            kept.append(src)
-        codes = [f"REFINE:keep={len(kept)},drop_injection={dropped}"]
-        if cfg.drop_generic:
-            codes.append(f"REFINE:DROP_GENERIC:{generic_dropped}")
-        return {"pending": kept, "log": codes}
+        codes = []
+        kept, refine_codes = call_plugin("refiner", refiner, refine_rule, codes,
+                                         s.get("pending", []), cfg)
+        return {"pending": kept, "log": codes + refine_codes}
 
     def extract_node(s: ResearchState):
         known = {c.claim_id for c in s.get("claims", [])}
         codes = []
-        if extractor is None:
+        if extractor is not None:
+            claims, metrics, relations = call_plugin(
+                "extractor", extractor, extract_rule, codes, s.get("pending", []), s["plan"], known)
+        elif model_extractor is None:
             claims, metrics, relations = extract_rule(s.get("pending", []), s["plan"], known)
         else:
-            claims, metrics, relations = extractor(s.get("pending", []), s["plan"], known, log=codes)
+            claims, metrics, relations = model_extractor(s.get("pending", []), s["plan"], known, log=codes)
         sources = {x.source_id: x for x in s.get("sources", [])}
         valid = [c for c in claims if span_matches(c, sources)]
         ids = {c.claim_id for c in valid}
@@ -440,17 +485,21 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
 
     def write_node(s: ResearchState):
         claims = s.get("claims", [])
-        draft = write_rule(s["plan"], claims, tuple(s.get("feedback") or ()), cfg, no_con(s))
+        codes = []
+        draft = call_plugin("writer", writer, write_rule, codes,
+                            s["plan"], claims, tuple(s.get("feedback") or ()), cfg, no_con(s))
         # A model writer would see a compact State table, not raw documents: only claims that carry
         # content (numbers, cause, condition, stance), never the generic background sentences.
         prompt = " ".join(c.text for c in claims if c.kind != "claim" or c.stance != "neutral")
-        return {"draft": draft, "log": [f"WRITE:{len(draft.sentences)}"],
+        return {"draft": draft, "log": codes + [f"WRITE:{len(draft.sentences)}"],
                 "cost": spend("write", "model_in", s["question"] + prompt) + spend("write", "model_out", draft.body())}
 
     def verify_node(s: ResearchState):
-        codes = verify_report(s["draft"], s["plan"], s.get("claims", []), s.get("metrics", []),
+        plugin_codes = []
+        codes = call_plugin("verifier", verifier, verify_report, plugin_codes,
+                            s["draft"], s["plan"], s.get("claims", []), s.get("metrics", []),
                               expect_balance=cfg.stance_split)
-        return {"verify_codes": codes, "log": ["VERIFY:" + (",".join(codes) if codes else "PASS")]}
+        return {"verify_codes": codes, "log": plugin_codes + ["VERIFY:" + (",".join(codes) if codes else "PASS")]}
 
     def after_coverage(s: ResearchState) -> str:
         if cfg.gap_loop and gap_open(s) and _cost(s) < cfg.max_shadow_tokens:
