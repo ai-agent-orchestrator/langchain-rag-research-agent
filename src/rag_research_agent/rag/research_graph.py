@@ -3,8 +3,7 @@
     plan -> retrieve(base | pro | con) -> refine -> extract -> compare -> coverage --gap--> retrieve_gap
          -> write -> verify --GAP--> retrieve_gap | --style issue--> write | --pass/limit--> finish
 
-- Nothing here calls a model. plan/extract/write are rule functions with the same inputs a model
-  node would get, so a local model can be plugged in later (writer=..., extractor=...).
+- Rule nodes remain the default; extraction can opt into an injected structured-output model.
 - State accumulates sources, claims, metrics and relations through reducers; nothing is overwritten.
 - Cost: every node records the tokens a model call *would* have used (shadow cost, ~chars/2), so the
   loop cost can be weighed against the prompt saved by retrieval (docs/RESEARCH_GRAPH_DESIGN.ko.md 10).
@@ -62,6 +61,7 @@ class ResearchConfig:
     max_sentences: int = 5          # first-draft budget; feedback can raise it
     max_shadow_tokens: int = 12000  # cost limit (estimated model tokens per request)
     parallel_branches: bool = False  # requires thread-safe, deterministic, prefix-stable top-k search
+    extractor: str = "rule"        # "rule" | "llm" (requires model and masker)
 
 
 # ------------------------------------------------------------------ rule nodes (pure)
@@ -230,7 +230,17 @@ class ResearchResult:
         return sum(t for _, _, t in self.cost)
 
 
-def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig()):
+def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(), *,
+                         extractor_model=None, masker=None):
+    if cfg.extractor not in ("rule", "llm"):
+        raise ValueError("unknown extractor")
+    extractor = None
+    if cfg.extractor == "llm":
+        from rag_research_agent.rag.research_llm import llm_extractor
+        if extractor_model is None:
+            raise ValueError("llm extraction requires extractor_model")
+        extractor = llm_extractor(extractor_model, masker)
+
     def spend(node: str, kind: str, text: str):
         return [(node, kind, est_tokens(text))]
 
@@ -300,13 +310,17 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
 
     def extract_node(s: ResearchState):
         known = {c.claim_id for c in s.get("claims", [])}
-        claims, metrics, relations = extract_rule(s.get("pending", []), s["plan"], known)
+        codes = []
+        if extractor is None:
+            claims, metrics, relations = extract_rule(s.get("pending", []), s["plan"], known)
+        else:
+            claims, metrics, relations = extractor(s.get("pending", []), s["plan"], known, log=codes)
         sources = {x.source_id: x for x in s.get("sources", [])}
         valid = [c for c in claims if span_matches(c, sources)]
         ids = {c.claim_id for c in valid}
         return {"claims": valid, "metrics": [m for m in metrics if m.claim_id in ids],
                 "relations": [r for r in relations if r.src in ids], "pending": [],
-                "log": [f"EXTRACT:claims={len(valid)},bad_span={len(claims) - len(valid)}"],
+                "log": codes + [f"EXTRACT:claims={len(valid)},bad_span={len(claims) - len(valid)}"],
                 "cost": spend("extract", "model_in", " ".join(x.text for x in s.get("pending", [])))}
 
     def compare_node(s: ResearchState):
@@ -413,9 +427,10 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
 
 
 class ResearchRunner:
-    def __init__(self, search: SearchFn, cfg: ResearchConfig = ResearchConfig()):
+    def __init__(self, search: SearchFn, cfg: ResearchConfig = ResearchConfig(), *,
+                 extractor_model=None, masker=None):
         self.cfg, self.search = cfg, search
-        self.graph = build_research_graph(search, cfg)
+        self.graph = build_research_graph(search, cfg, extractor_model=extractor_model, masker=masker)
 
     def run(self, question: str, checklist: tuple[str, ...] = ()) -> ResearchResult:
         with serving_trace_guard():
