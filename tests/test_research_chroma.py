@@ -139,6 +139,18 @@ def test_embedding_error_propagates(build):
         make_chroma_search(index, embedder)("", 1)
 
 
+@pytest.mark.parametrize("query", [" ", "\t\n", "\u3000"])
+@pytest.mark.parametrize("rule", [None, gate()])
+def test_whitespace_query_rejected_even_when_embedder_normalizes_it(build, query, rule):
+    index, embedder, _ = build()
+    # The real FakeEmbedder hashes the empty string into a unit vector. The
+    # adapter must reject meaningless queries independently of that behavior.
+    vector = embedder.encode_query(query)
+    assert sum(value * value for value in vector) == pytest.approx(1.0)
+    with pytest.raises(EmbeddingError, match="empty query"):
+        make_chroma_search(index, embedder, rule=rule)(query, 1)
+
+
 def test_research_runner_reaches_verified_masked_report(build):
     index, embedder, chunks = build(texts=(TEXT,))
     search = make_chroma_search(index, embedder, rule=gate(absolute=0.0), masker=PatternMasker())

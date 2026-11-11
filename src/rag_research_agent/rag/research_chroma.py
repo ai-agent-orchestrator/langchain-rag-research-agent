@@ -10,7 +10,7 @@ MATURITY = "incubating"
 import math
 
 from rag_research_agent.core.contracts import RetrievalMode
-from rag_research_agent.embed.providers import Embedder
+from rag_research_agent.embed.providers import Embedder, EmbeddingError
 from rag_research_agent.guard.protocols import Masker
 from rag_research_agent.rag.research_graph import SearchFn
 from rag_research_agent.retrieve.gate import RelevanceRule, to_result
@@ -28,6 +28,8 @@ def make_chroma_search(index: ChromaIndex, embedder: Embedder, *,
     To include the second distinct document even behind many same-document chunks,
     gated searches inspect all indexed chunks before truncating to k. This costs
     more than ordinary top-k retrieval. Rule thresholds need separate calibration.
+    Empty or whitespace-only masked queries raise EmbeddingError: a provider can
+    normalize a synthetic empty-string vector without representing a search query.
     The caller retains ownership and must close the index when finished.
     """
     if index.dimension != embedder.dimension:
@@ -47,6 +49,8 @@ def make_chroma_search(index: ChromaIndex, embedder: Embedder, *,
         if count == 0:
             return []
         safe_query = masker.mask(query) if masker is not None else query
+        if not safe_query.strip():
+            raise EmbeddingError("empty query has no meaningful L2-normalized embedding")
         vector = embedder.encode_query(safe_query)
         hits = index.search_vector(vector, k=count if rule is not None else min(k, count))
         if rule is not None:
