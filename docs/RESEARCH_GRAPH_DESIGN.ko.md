@@ -130,28 +130,67 @@ START → classify ─smalltalk→ finish
 
 ## 7. 기존 코드와의 연결
 
-- 이미 있음: 가드레일 그래프(classify·rag·비용/반복 관문, D13), `serving_trace_guard`, Chroma 저장소, 근거 게이트,
-  `ontology/rule_labeler`(도메인 프로필로 클래스 정의), `compose/numbers`(수치를 원문 그대로 추출), 골든 룰의 인과 유형·도메인 팩.
-- 1단계 구현 완료(이번 커밋): `guard/domain_filter.py`(교체 계약·등록), `guard/research_filter.py`(검수 v1:
-  수치·근거·인과·조건·밀도), 가드레일 그래프의 `screen`·`verify` 관문과 재생성 루프, `GuidancePipeline.ainvoke_with_evidence`.
-  시험 `tests/test_domain_filter.py` 18개.
-- 2026-11-11 추가(규칙 기반, 모델 없음): `core/research.py`(Claim·Metric·Relation·SourceRef·Draft, span 검증),
-  `rag/research_graph.py`(plan → base/pro/con/limits 검색 → refine → extract → compare → coverage ⇄ retrieve_gap → write → verify ⇄ rewrite),
-  `guard/research_filter.verify_report`(claim 단위 검수: GAP·UNSUPPORTED_NUMBER·UNCITED·CAUSAL_LOSS·CONSTRAINT_DROPPED·ONE_SIDED·LOW_DENSITY),
-  실험 `scripts/research_eval.py` + 보드 `scripts/research_board.py`. 시험 `tests/test_research_graph.py` 12개.
-- 아직 없음: 구조화 출력 모델 노드(로컬 모델 자리만 있음), Chroma 검색 어댑터, 실제 모델 작성기.
+2026-11-11 저장소 코드 기준이다. 아래의 구현 존재와 시험 정의는 실행 통과·실제 모델 품질을 뜻하지 않는다.
+
+- 가드레일: `guard/domain_filter.py`의 교체 계약·등록, `guard/research_filter.py`의 텍스트 검수,
+  `rag/guardrail_graph.py`의 classify/screen/rag/verify와 비용·반복 관문이 있다.
+  R3의 `rag/retry_graph.py`는 검색 호출 수를 집계하며 `default_cost`는 검색·생성 호출 수를 비용에 반영한다.
+- 연구 State와 규칙 노드: `core/research.py`의 Claim·Metric·Relation·SourceRef·Draft와 span 검증,
+  `rag/research_graph.py`의 plan → retrieve → refine → extract → compare → coverage → write → verify가 있다.
+  기본 `retrieve` 한 노드가 base/pro/con/limits를 순차 검색한다. `retrieve_gap`은 refine으로,
+  `rewrite`는 write로 돌아간다. 반대 근거 중단 정책은 `stop_no_con` 노드로 간다.
+  이 내부 그래프에는 classify/screen/finish 노드가 없고 종료는 `__end__`다. 1절은 상위 흐름의 설계 개요다.
+- R6 병렬 옵션: `parallel_branches=False`가 기본이다. 켜면 `retrieve_base/pro/con/limits`와
+  `join_retrieval` 노드를 만든다. `stance_split=False`이면 base만 만든다.
+  결정적·접두사 순위가 유지되는 top-k 검색과 동시 호출 안전성은 호출자 계약이다.
+- Chroma 연결: `rag/research_chroma.py`의 `make_chroma_search`가 호출자 소유 ChromaIndex·Embedder를
+  SearchFn으로 연결한다. 차원 검사, 선택적 근거 게이트·masker가 있으며 모델을 로드하지 않는다.
+  masker가 없으면 질문·검색 본문은 이미 마스킹되어야 한다. `keyword_search`는 별도의 규칙 경로 시험용이다.
+- R10·R11 구조화 출력: `rag/research_llm.py`의 `llm_extractor`·`llm_planner`가 구현되어 있다.
+  `extractor="llm"`·`planner="llm"`은 모델과 masker 주입이 필요하며 기본은 `"rule"`이다.
+  마스킹·구조 검증·규칙 폴백을 수행하고, 추출은 인용 span과 수치·관계 참조를 확인한다.
+  모델 계획의 관점·쟁점은 검색 갈래를 바꾸지 않는다. 현재 extract_rule은 자체 정규식 규칙이며
+  `ontology/rule_labeler`·`compose/numbers`를 직접 호출하지 않는다.
+- R12 검수: `verify_report(..., check_claim_alignment=False)`에 선택적 MISQUOTED·OVERREACH 판정이 있다.
+  기본 claim 검수는 GAP·UNSUPPORTED_NUMBER·UNCITED·CAUSAL_LOSS·CONSTRAINT_DROPPED·ONE_SIDED·LOW_DENSITY다.
+  정렬 검수 옵션은 아직 ResearchConfig/verify 노드에 노출되지 않아 **후속 연결 필요**다.
+- R13 체크포인트: `ResearchRunner(..., checkpointer=...)`와 `thread_id`로 실행 상태를 보관한다.
+  `review_plan=True`일 때 `review_plan` 노드가 interrupt하고 `resume(..., required_metrics=...)`으로 재개한다.
+  기본은 checkpointer 없음·검토 꺼짐이며 HTTP/UI 검토 연결은 **후속 연결 필요**다.
+- R14 가드레일 연결: `rag/research_guardrail.py`의 ResearchGuardrailAdapter가 비동기 RAG 호출과
+  추정 토큰 비용 함수를 제공한다. 미통과·중단·검토 중인 보고서는 안전 답변으로 바꾼다.
+  체크포인트/검토 세션은 어댑터가 거부하며 기본 서비스 연결은 **후속 연결 필요**다.
+- R15 refine 옵션: `drop_generic=False`가 기본이다. 켜면 숫자·인과·조건 없는 상투적 문단을
+  공백으로 치환해 추출에서 제외하면서 원본 span 위치를 유지한다. 주입 문서 제거를 먼저 수행한다.
+- R7·R8 평가 UI: `scripts/research_eval.py`의 합성 규칙 경로 결과를 `research_board.py`가
+  보고서 나란히 비교·정답 항목 반영 표시로 렌더링한다. `research_grid.py`는 손잡이 조합을
+  compare 문항으로만 평가한다. 결과는 `.runs/research_eval/`에 저장한다.
+  실제 모델 작성기는 없고 write_rule은 State의 claim을 선택·인용하는 추출식 작성기다.
+
+실제 기본 그래프의 Mermaid 저장 대상은 [research_graph.mmd](diagrams/research_graph.mmd)다.
+`python scripts/research_graph_diagram.py`는 `build_research_graph(...).get_graph().draw_mermaid()`를
+사용하며 그래프 실행·검색·모델 호출 없이 저장한다. 기본 다이어그램은 병렬·계획 검토 옵션을 포함하지 않는다.
+R17 샌드박스에는 Python 실행기가 없어 생성 파일은 아직 없으며 생성·시험 실행은 **미검증**이다.
+상세 제약은 [R17 보고서](R17_REPORT_2026-11-11.md)에 기록한다.
 
 ## 8. 구현 순서 (각 단계 끝마다 시험 통과 + 보고서)
 
-1. **(완료)** 도메인 필터 계약 + 리서치 검수 v1 + screen/verify 관문.
-2. **(규칙 기반 완료)** State 스키마와 리듀서(`Claim`·`Metric`·`Relation`·`SourceRef`), span 검증기. 순수 Python, 모델 없음.
-3. extract 노드: 규칙 폴백 먼저(rule_labeler·numbers), 그다음 구조화 출력 어댑터(rag/ 안에서만).
-4. plan + coverage + `retrieve_gap` 표적 루프, `GAP` 코드와 지표별 한도.
-5. 관점 분리 검색(pro/con/base)과 compare, `ONE_SIDED` 판정.
-6. write를 claim 인용 방식으로 바꾸고, verify를 claim 단위로 강화(문장 ↔ 인용 claim 대조).
-7. 6절 가설 측정(합성 골든셋, 단일 모델 기준선).
+| 단계 | 코드에서 확인한 현황 | 남은 연결·검증 |
+| --- | --- | --- |
+| 1. 도메인 계약·관문 | 계약·등록·screen/verify, R3 검색 호출 비용 반영 있음 | 실제 모델·서비스 종단 동작 미검증 |
+| 2. State·span | 데이터 클래스·누적 리듀서·span 검증 있음 | 설계의 entities 필드, supports/supersedes 관계 없음 |
+| 3. extract·plan | 규칙 노드 + R10/R11 선택적 구조화 출력 어댑터 있음 | 실제 주입 모델 실행·품질 미검증, 실제 모델 작성기 없음 |
+| 4. coverage·gap | 필수 지표 누락 계산, 지표별 재검색 한도와 검수 GAP 루프 있음 | 쟁점별 coverage 없음 |
+| 5. 관점·compare | 순차 base/pro/con/limits, 선택적 병렬 분기, 반대 관점 claim 관계·ONE_SIDED 검사 있음 | 실제 Chroma 병렬 성능·안전성 미검증 |
+| 6. 작성·검수 | claim 인용 작성, 기본 검수, R12 선택적 문장 대조 있음 | check_claim_alignment 그래프 설정 노출은 후속 연결 필요 |
+| 7. 평가·보드 | 합성 규칙 기준선·graph 비교, 보고서 비교, compare 격자 있음 | 실제 단일 LLM 대비 6절 가설은 미검증 |
+| 8. 세션·운영 연결 | R13 체크포인트·계획 검토, R14 선택적 가드레일 어댑터, R15 refine 옵션 있음 | 검토 HTTP/UI·기본 서비스 연결은 후속 연결 필요 |
 
-2·3·4단계는 모델 없이 시험 가능한 부분이 많아 NightCoder 명세로 나눠 맡기기 좋다.
+관련 시험 정의: `test_retry_budget.py`, `test_research_graph.py`, `test_research_parallel.py`,
+`test_research_chroma.py`, `test_research_llm_extract.py`, `test_research_llm_plan.py`,
+`test_research_claim_verify.py`, `test_research_checkpoint.py`, `test_research_guardrail.py`,
+`test_research_noise.py`, `test_research_board.py`, `test_research_grid.py`, `test_research_diagram.py`.
+모두 `tests/` 아래에 있다. 시험 실행 통과 여부는 각 보고서와 NightCoder 게이트 결과를 확인해야 한다.
 
 ## 9. 결정 (2026-11-11 대표 선택, 모두 설정으로 바꿀 수 있음)
 
