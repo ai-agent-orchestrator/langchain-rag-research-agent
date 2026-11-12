@@ -158,3 +158,23 @@ def test_duplicate_or_invalid_events_and_inconsistent_grade_are_rejected():
         check_targets([invalid], targets)
     with pytest.raises(ValueError, match="match document counts"):
         check_targets([event(grade={"docs_in": 10, "docs_kept": 5, "relevance_drop_rate": .1})], targets)
+
+
+@pytest.mark.parametrize("kept,reported", [
+    (8, .2 - 1e-13), (8, .2 + 1e-13),
+    (2, .8 - 1e-13), (2, .8 + 1e-13),
+])
+def test_drop_boundary_uses_document_counts_despite_reported_rounding(kept, reported):
+    targets = {"research": {"grade": {"relevance_drop_rate": {"min": .2, "max": .8}}}}
+    measured = event(grade={"docs_in": 10, "docs_kept": kept,
+                           "relevance_drop_rate": reported})
+    assert check_targets([measured], targets) == []
+
+
+def test_drop_warning_value_matches_count_ratio_despite_reported_rounding():
+    targets = {"research": {"grade": {"relevance_drop_rate": {"max": .8}}}}
+    measured = event(grade={"docs_in": 10, "docs_kept": 1,
+                           "relevance_drop_rate": .9 + 1e-13})
+    warning, = check_targets([measured], targets)
+    assert warning["value"] == warning["rate"] == warning["count"] / warning["total"]
+    assert warning["bound"] == "max"

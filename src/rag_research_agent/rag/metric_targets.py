@@ -71,6 +71,8 @@ def check_targets(
     Accept actual RunEvents or complete schema mappings, and loaded targets or
     a file path. Missing domains/metrics/bounds are disabled, with no fallback.
     Each warning carries run_id, domain, estimated, metric, value, bound, limit.
+    Drop-rate bounds use the document-count ratio after validating the reported
+    rate, so tolerated rounding cannot turn equality into a warning.
     Drop-rate warnings also carry count/total/rate/wilson95. Injection run IDs
     skip only relevance checks. Empty document samples have no measured rate.
     Guard counts are conservative rejection signals, not proven unsafe output;
@@ -98,6 +100,7 @@ def check_targets(
                 value = event.grade["relevance_drop_rate"]
                 if not isclose(value, ratio["rate"], rel_tol=1e-9, abs_tol=1e-12):
                     raise ValueError("relevance_drop_rate must match document counts")
+                value = ratio["rate"]
             else:
                 value = len(event.guard) if metric == "guard" else getattr(event, metric)
             for bound, limit in bounds.items():
