@@ -57,12 +57,13 @@ def listing(rows) -> str:
                             for k, v in rows) + "</ul>"
 
 
-def bars(values) -> str:
+def bars(values, *, counts=None) -> str:
     if not values:
         return "<p>노드 계측 없음</p>"
     maximum = max(values.values()) or 1
     return "".join(
         f'<div>{escape(name)}: {value:.2f} ms (호출당 평균)'
+        + (f' · n={counts[name]}' if counts is not None else '') +
         f'<svg viewBox="0 0 100 6" role="img" aria-label="{escape(name, quote=True)} ms">'
         f'<rect width="{value / maximum * 100:.2f}" height="6" /></svg></div>'
         for name, value in sorted(values.items()))
@@ -106,7 +107,8 @@ def panels(events, *, gold, injections) -> str:
     for event in events:
         for node in event.nodes:
             timings[node.name].append(node.ms)
-    latency = bars({k: sum(v)/len(v) for k, v in timings.items()})
+    latency = bars({k: sum(v)/len(v) for k, v in timings.items()},
+                   counts={k: len(v) for k, v in timings.items()})
     latency += listing([
         ("TTFT 평균 ms", f"{sum(e.ttft_ms for e in events)/n:.2f}" if n else "미검증"),
         ("전체 실행 평균 ms", f"{sum(e.total_ms for e in events)/n:.2f}" if n else "미검증"),
@@ -122,7 +124,8 @@ def panels(events, *, gold, injections) -> str:
 STYLE = """
 :root{color-scheme:light dark;--bg:#f6f7fa;--panel:white;--ink:#182235;--line:#d7dfeb;--accent:#346ac4}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#111827;--panel:#1e293b;--ink:#eef2ff;--line:#475569;--accent:#8ab4ff}}
-:root[data-theme=dark]{--bg:#111827;--panel:#1e293b;--ink:#eef2ff;--line:#475569;--accent:#8ab4ff}
+:root[data-theme=light]{color-scheme:light}
+:root[data-theme=dark]{color-scheme:dark;--bg:#111827;--panel:#1e293b;--ink:#eef2ff;--line:#475569;--accent:#8ab4ff}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui}
 main{max-width:1200px;margin:auto;padding:16px;overflow-wrap:anywhere}h1{font-size:1.6rem}h2{font-size:1.2rem}h3{font-size:1rem}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.panel{min-width:0;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:16px}

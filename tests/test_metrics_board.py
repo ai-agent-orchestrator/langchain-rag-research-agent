@@ -151,3 +151,29 @@ def test_responsive_theme_and_self_contained_markup():
     assert "overflow-wrap:anywhere" in html
     assert not any(t in {"script", "link", "img"} and ("src" in a or "href" in a)
                    for t, a in Markup(html).tags)
+
+
+def test_node_sample_size_counts_repeated_calls_not_runs():
+    repeated = event(nodes=(NodeEvent("retrieve", 10, 0, 0, None, True),
+                            NodeEvent("retrieve", 30, 0, 0, None, True)))
+    other = event("run-b2", nodes=(NodeEvent("retrieve", 80, 0, 0, None, True),
+                                  NodeEvent("grade", 25, 0, 0, None, True)))
+    html = render([repeated, other])
+    assert "retrieve: 40.00 ms (호출당 평균) · n=3" in html
+    assert "grade: 25.00 ms (호출당 평균) · n=1" in html
+    assert "실행 표본 수: 2" in html
+
+
+def test_explicit_themes_set_native_control_color_scheme():
+    html = render([event()])
+    assert ":root[data-theme=light]{color-scheme:light}" in html
+    assert ":root[data-theme=dark]{color-scheme:dark;" in html
+
+
+def test_real_schema_mapping_and_generator_injection_across_domains():
+    research = json.loads(event().to_json(dumps=json.dumps))
+    legal = event("run-b2", "legal")
+    html = render(iter([research, legal]), injection_run_ids=iter(["run-a1", "run-b2"]))
+    assert CounterPanels(Markup(html).tags)["guard"] == 2
+    assert html.count("RelevanceGrade 탈락률: 미검증 (n=0)") == 2
+    assert html.count("UNSUPPORTED_NUMBER: 1회") == 2
