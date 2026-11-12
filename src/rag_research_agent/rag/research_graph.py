@@ -19,7 +19,7 @@ from typing import Annotated, Callable, Literal, Optional, Protocol, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.base import BaseCheckpointSaver
-from langgraph.types import Command, interrupt
+from langgraph.types import Command, Send, interrupt
 
 from rag_research_agent.core.research import (
     NO_COUNTER_EVIDENCE, Claim, Draft, Metric, Relation, ReportSentence, ResearchPlan, SourceRef, span_matches,
@@ -72,6 +72,7 @@ class ResearchConfig:
     per_node_token_cap: int | None = None  # input + output estimate per invocation; stop after node
     stop_if_no_progress: bool = False  # any code recurring in consecutive verifications
     writer: Literal["rule", "llm"] = "rule"  # requires writer_model and masker
+    parallel_extract: bool = False  # document-local, thread-safe extractors only
 
 
 PlannerFn = Callable[[str, tuple[str, ...], ResearchConfig], ResearchPlan]
@@ -332,7 +333,8 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
     """Build the real graph with optional synchronous rule-signature plugins.
 
     Explicit plugins take precedence over the corresponding LLM option. Only
-    exceptions raised by an explicit plugin are caught; rule failures propagate.
+    exceptions raised by an explicit plugin are caught; rule failures propagate
+    in sequential mode. Parallel extraction isolates each document's failures.
     Fallback logs contain fixed codes, never exception messages. Plugins receive
     already-masked inputs and must not mutate them or perform remote tracing.
     """
@@ -478,6 +480,35 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
         rel = compare_rule(s.get("claims", []))
         return {"relations": rel, "log": [f"COMPARE:contradicts={len(rel)}"]}
 
+    def dispatch_extract(s: ResearchState):
+        if s.get("stopped"):
+            return END
+        tasks = []
+        for source in s.get("pending", []):
+            task = {"pending": [source], "sources": [source], "plan": s["plan"],
+                    "claims": s.get("claims", [])}
+            if checkpointer is not None:
+                task = _checkpoint_state(task)
+            tasks.append(Send("extract_one", task))
+        return tasks or "join_extract"
+
+    def extract_one_node(s: ResearchState):
+        try:
+            update = extract_node(s)
+        except Exception:
+            # Never expose exception text or discard successful sibling results.
+            update = {"log": ["EXTRACT_ONE:ERROR"],
+                      "cost": spend("extract", "model_in", s["pending"][0].text)}
+        # pending is a single-writer channel; only the join may clear it.
+        update.pop("pending", None)
+        return update
+
+    def join_extract_node(s: ResearchState):
+        update = {"pending": []}
+        if "STOP:PER_NODE_TOKEN_CAP" in s.get("log", []):
+            update["stopped"] = "PER_NODE_TOKEN_CAP"
+        return update
+
     def coverage_node(s: ResearchState):
         gaps = coverage_rule(s["plan"], s.get("claims", []), s.get("metrics", []))
         return {"gaps": gaps, "log": ["COVERAGE:" + (",".join(gaps) if gaps else "full")]}
@@ -562,7 +593,7 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
     def _cost(s: ResearchState) -> int:
         return sum(t for _, _, t in s.get("cost", []))
 
-    def checkpoint_node(fn):
+    def checkpoint_node(fn, *, parallel: bool = False):
         if checkpointer is None and cfg.per_node_token_cap is None:
             return fn
 
@@ -573,7 +604,8 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
             # This is a post-node shadow budget, not an injected model's max_tokens.
             if (cfg.per_node_token_cap is not None
                     and sum(t for _, _, t in update.get("cost", [])) >= cfg.per_node_token_cap):
-                update["stopped"] = "PER_NODE_TOKEN_CAP"
+                if not parallel:
+                    update["stopped"] = "PER_NODE_TOKEN_CAP"
                 update["log"] = update.get("log", []) + ["STOP:PER_NODE_TOKEN_CAP"]
             return _checkpoint_state(update) if checkpointer is not None else update
         return run
@@ -604,6 +636,8 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
                      ("rewrite", rewrite_node), ("stop_no_con", stop_no_con_node)]:
         if name == "retrieve" and cfg.parallel_branches:
             continue
+        if name == "extract" and cfg.parallel_extract:
+            continue
         g.add_node(name, checkpoint_node(fn))
     g.add_edge(START, "plan")
     retrieval_start = "plan"
@@ -625,8 +659,16 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
         forward(retrieval_start, "retrieve")
         forward("retrieve", "refine")
     forward("retrieve_gap", "refine")
-    forward("refine", "extract")
-    forward("extract", "compare")
+    if cfg.parallel_extract:
+        g.add_node("extract_one", checkpoint_node(extract_one_node, parallel=True))
+        g.add_node("join_extract", checkpoint_node(join_extract_node))
+        g.add_conditional_edges("refine", checkpoint_route(dispatch_extract),
+                                ["extract_one", "join_extract", END])
+        g.add_edge("extract_one", "join_extract")
+        forward("join_extract", "compare")
+    else:
+        forward("refine", "extract")
+        forward("extract", "compare")
     forward("compare", "coverage")
     coverage_routes = {"retrieve_gap": "retrieve_gap", "write": "write", "stop_no_con": "stop_no_con"}
     if cfg.per_node_token_cap is not None:
