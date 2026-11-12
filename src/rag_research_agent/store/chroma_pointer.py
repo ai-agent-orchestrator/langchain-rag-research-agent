@@ -36,7 +36,18 @@ _CLIENT_LIFECYCLE = RLock()
 class _PointerIndex(ChromaIndex):
     def __init__(self, *args, **kwargs):
         with _CLIENT_LIFECYCLE:
-            super().__init__(*args, **kwargs)
+            self._client = None
+            self._col = None
+            try:
+                super().__init__(*args, **kwargs)
+            except BaseException:
+                # ChromaIndex may acquire a client before get_collection fails.
+                # No handle reaches the caller in that case; release it here.
+                try:
+                    self.close()
+                except Exception:
+                    LOGGER.warning("CHROMA_OPEN_CLEANUP_FAILED")
+                raise
 
     def close(self) -> None:
         with _CLIENT_LIFECYCLE:

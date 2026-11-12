@@ -45,6 +45,47 @@ def test_new_versions_reopen_and_old_reader_survives(store):
         old.close()
 
 
+@pytest.mark.parametrize("cleanup_error", [False, True])
+def test_failed_reader_open_releases_real_client(store, monkeypatch, caplog, cleanup_error):
+    from rag_research_agent.core.contracts import RetrievalUnavailable
+    from rag_research_agent.store import chroma_store
+
+    publish(store)
+    before = (store.root / "current.json").read_bytes()
+    factory = chroma_store._client
+    opened, closed = [], []
+
+    def failing_factory(path):
+        client = factory(path)
+        opened.append(client)
+        close = client.close
+
+        def fail_get(*args, **kwargs):
+            raise LookupError("synthetic collection failure")
+
+        def tracked_close():
+            close()
+            closed.append(client)
+            if cleanup_error:
+                raise RuntimeError("synthetic cleanup failure")
+
+        monkeypatch.setattr(client, "get_collection", fail_get)
+        monkeypatch.setattr(client, "close", tracked_close)
+        return client
+
+    with monkeypatch.context() as patch:
+        patch.setattr(chroma_store, "_client", failing_factory)
+        with pytest.raises(RetrievalUnavailable, match="cannot open chroma collection") as error:
+            store.open_active()
+    assert isinstance(error.value.__cause__, LookupError)
+    assert len(opened) == len(closed) == 1
+    assert closed[0] is opened[0]
+    assert (store.root / "current.json").read_bytes() == before
+    assert ("CHROMA_OPEN_CLEANUP_FAILED" in caplog.text) == cleanup_error
+    assert "synthetic cleanup failure" not in caplog.text
+    assert_active(store, "alpha")
+
+
 def test_pointer_is_complete_before_atomic_replace(store, monkeypatch):
     publish(store)
     replace = chroma_pointer.os.replace
