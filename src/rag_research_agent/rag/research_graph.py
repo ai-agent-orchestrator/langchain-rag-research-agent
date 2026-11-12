@@ -3,7 +3,7 @@
     plan -> retrieve(base | pro | con) -> refine -> extract -> compare -> coverage --gap--> retrieve_gap
          -> write -> verify --GAP--> retrieve_gap | --style issue--> write | --pass/limit--> finish
 
-- Rule nodes remain the default; five node functions and optional planning/extraction models are injectable.
+- Rule nodes remain the default; five node functions and planning/extraction/writing models are injectable.
 - State accumulates sources, claims, metrics and relations through reducers; nothing is overwritten.
 - Cost: every node records the tokens a model call *would* have used (shadow cost, ~chars/2), so the
   loop cost can be weighed against the prompt saved by retrieval (docs/RESEARCH_GRAPH_DESIGN.ko.md 10).
@@ -71,6 +71,7 @@ class ResearchConfig:
     gap_first: bool = True          # priority when both verifier routes are available
     per_node_token_cap: int | None = None  # input + output estimate per invocation; stop after node
     stop_if_no_progress: bool = False  # any code recurring in consecutive verifications
+    writer: Literal["rule", "llm"] = "rule"  # requires writer_model and masker
 
 
 PlannerFn = Callable[[str, tuple[str, ...], ResearchConfig], ResearchPlan]
@@ -323,7 +324,7 @@ class ResearchResult:
 
 
 def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(), *,
-                         extractor_model=None, planner_model=None, masker=None,
+                         extractor_model=None, planner_model=None, writer_model=None, masker=None,
                          checkpointer: BaseCheckpointSaver | None = None,
                          planner: PlannerFn | None = None, extractor: ExtractorFn | None = None,
                          writer: WriterFn | None = None, verifier: VerifierFn | None = None,
@@ -356,6 +357,15 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
         if extractor_model is None:
             raise ValueError("llm extraction requires extractor_model")
         model_extractor = llm_extractor(extractor_model, masker)
+
+    if cfg.writer not in ("rule", "llm"):
+        raise ValueError("unknown writer")
+    model_writer = None
+    if cfg.writer == "llm" and writer is None:
+        from rag_research_agent.rag.research_llm import llm_writer
+        if writer_model is None:
+            raise ValueError("llm writing requires writer_model")
+        model_writer = llm_writer(writer_model, masker)
 
     def call_plugin(name, plugin, rule, codes, *args, **kwargs):
         if plugin is not None:
@@ -493,8 +503,11 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
     def write_node(s: ResearchState):
         claims = s.get("claims", [])
         codes = []
-        draft = call_plugin("writer", writer, write_rule, codes,
-                            s["plan"], claims, tuple(s.get("feedback") or ()), cfg, no_con(s))
+        args = (s["plan"], claims, tuple(s.get("feedback") or ()), cfg, no_con(s))
+        if writer is not None or model_writer is None:
+            draft = call_plugin("writer", writer, write_rule, codes, *args)
+        else:
+            draft = model_writer(*args, log=codes)
         # A model writer would see a compact State table, not raw documents: only claims that carry
         # content (numbers, cause, condition, stance), never the generic background sentences.
         prompt = " ".join(c.text for c in claims if c.kind != "claim" or c.stance != "neutral")
@@ -638,12 +651,13 @@ def _review_metrics(value) -> tuple[str, ...]:
 
 class ResearchRunner:
     def __init__(self, search: SearchFn, cfg: ResearchConfig = ResearchConfig(), *,
-                 extractor_model=None, planner_model=None, masker=None,
+                 extractor_model=None, planner_model=None, writer_model=None, masker=None,
                  checkpointer: BaseCheckpointSaver | None = None):
         self.cfg, self.search = cfg, search
         self.checkpointer = checkpointer
         self.graph = build_research_graph(search, cfg, extractor_model=extractor_model,
-                                          planner_model=planner_model, masker=masker, checkpointer=checkpointer)
+                                          planner_model=planner_model, writer_model=writer_model,
+                                          masker=masker, checkpointer=checkpointer)
 
     def _config(self, thread_id: str | None):
         if self.checkpointer is not None:
