@@ -127,9 +127,21 @@ def test_duplicate_runs_rejected_in_renderer_and_loader(tmp_path):
         load_events(tmp_path)
 
 
-def test_cli_refuses_output_outside_runs(tmp_path):
+def test_cli_refuses_output_outside_runs(tmp_path, monkeypatch):
+    # pytest's base temp may itself live in the real repository's .runs.
+    # Give the CLI an isolated project root so this output is always outside it.
+    monkeypatch.setattr("scripts.metrics_board.ROOT", tmp_path / "project")
     with pytest.raises(SystemExit):
         main(["--output", str(tmp_path / "board.html")])
+
+
+def test_cli_rejection_when_pytest_temp_is_inside_runs(tmp_path, monkeypatch):
+    # Reproduce the R35 command's layout: tmp_path was under ROOT/.runs.
+    project = tmp_path / "repository"
+    monkeypatch.setattr("scripts.metrics_board.ROOT", project)
+    nested_temp = project / ".runs" / "pytest-temp" / "case-a"
+    test_cli_refuses_output_outside_runs(nested_temp, monkeypatch)
+    assert not (nested_temp / "board.html").exists()
 
 
 def test_responsive_theme_and_self_contained_markup():
