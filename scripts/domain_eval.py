@@ -151,7 +151,7 @@ def measure(metric, case, output):
     return checks, occurrences
 
 
-def evaluate(cases, metrics, evaluator=None, split="compare", retrieval=False):
+def evaluate(cases, metrics, evaluator=None, split="compare", retrieval=False, judge=None):
     """evaluator(case) -> JSON field mapping; default scores case['output']."""
     validate_metrics(metrics)
     if split not in {"compare", "confirm"}:
@@ -167,7 +167,7 @@ def evaluate(cases, metrics, evaluator=None, split="compare", retrieval=False):
     if not selected:
         raise ValueError(f"empty pack for split: {split}")
     buckets = {m["name"]: {"checks": [], "violations": [], "count": 0} for m in metrics}
-    rows, retrieval_scores = [], []
+    rows, retrieval_scores, verdicts, disagreements = [], [], [], []
     for case in selected:
         output = evaluator(case) if evaluator else field(case, "output")
         row = {"case": case["id"], "metrics": {}}
@@ -187,6 +187,25 @@ def evaluate(cases, metrics, evaluator=None, split="compare", retrieval=False):
                 bucket["violations"].append(not all(checks))
             bucket["count"] += count
             row["metrics"][metric["name"]] = {"ok": sum(checks), "n": len(checks), "count": count}
+        if judge is not None and "reference" in case and case.get("type") != "injection":
+            from rag_research_agent.rag.judge import JudgeVerdict
+
+            reference = case["reference"]
+            if not isinstance(reference, str) or not reference.strip():
+                raise ValueError("reference must be nonempty text")
+            answer = field(output, "answer" if "answer" in output else "body")
+            question = field(case, "question")
+            if not isinstance(answer, str) or not isinstance(question, str):
+                raise ValueError("judge question and answer must be text")
+            verdict = JudgeVerdict.model_validate(judge.judge(question, answer, reference))
+            row["judge"] = verdict.model_dump()
+            verdicts.append(verdict)
+            mismatches = {name: stats["ok"] == stats["n"]
+                          for name, stats in row["metrics"].items()
+                          if stats["n"] and (stats["ok"] == stats["n"]) != verdict.correct}
+            if mismatches:
+                disagreements.append({"case": case["id"], "judge_correct": verdict.correct,
+                                      "rule_metrics": mismatches})
         rows.append(row)
     quality, safety = {}, {}
     for metric in metrics:
@@ -209,10 +228,24 @@ def evaluate(cases, metrics, evaluator=None, split="compare", retrieval=False):
         from rag_research_agent.rag.eval_retrieval import aggregate_retrieval
 
         result["retrieval"] = aggregate_retrieval(retrieval_scores)
+    if judge is not None:
+        accuracy = wilson(sum(v.correct for v in verdicts), len(verdicts))
+        accuracy["ok"] = accuracy.pop("errors")
+        result["judge"] = {"n": len(verdicts),
+                           "mean_score": sum(v.score for v in verdicts) / len(verdicts) if verdicts else None,
+                           "accuracy": accuracy}
+        result["judge_disagreements"] = disagreements
     return result
 
 
-def run(domain, packs=PACKS, split="compare", evaluator=None, retrieval=False):
+def run(domain, packs=PACKS, split="compare", evaluator=None, retrieval=False, judge="none"):
+    if judge not in {"none", "fake"}:
+        raise ValueError("judge must be none or fake")
+    selected_judge = None
+    if judge == "fake":
+        from rag_research_agent.rag.judge import FakeJudge
+
+        selected_judge = FakeJudge()
     cases, metrics = load_pack(domain, packs, retrieval=retrieval)
     if split != "compare":
         raise ValueError("CLI supports compare only; confirm requires a separately selected configuration")
@@ -222,7 +255,9 @@ def run(domain, packs=PACKS, split="compare", evaluator=None, retrieval=False):
                                    and case.get("type") != "injection")
     else:
         selected_evaluator = evaluator
-    result = evaluate(cases, metrics, selected_evaluator, split, retrieval=retrieval)
+    result = evaluate(cases, metrics, selected_evaluator, split, retrieval=retrieval, judge=selected_judge)
+    if selected_judge is not None:
+        result["judge"]["evaluation"] = "fake_rule_path_test"
     result.update(domain=domain, schema_version=1,
                   evaluation=("injected_evaluator" if evaluator is not None else
                               "synthetic_rule_path_test" if domain == "research" else "provided_outputs"),
@@ -239,15 +274,20 @@ def main(argv=None):
     parser.add_argument("--domain", required=True)
     parser.add_argument("--packs", type=Path, default=PACKS)
     parser.add_argument("--retrieval", action="store_true", help="score labelled retrieval rankings")
+    parser.add_argument("--judge", choices=("none", "fake"), default="none",
+                        help="optional reference-answer path test judge")
     args = parser.parse_args(argv)
     try:
-        result = run(args.domain, args.packs, retrieval=args.retrieval)
+        result = run(args.domain, args.packs, retrieval=args.retrieval, judge=args.judge)
     except (ValueError, OSError) as exc:
         parser.error(str(exc))
     summary = {"domain": args.domain, "n_cases": result["n_cases"],
                "quality_mean": result["quality_mean"], "safety_metrics": result["safety_metrics"]}
     if args.retrieval:
         summary["retrieval"] = result["retrieval"]
+    if args.judge != "none":
+        summary["judge"] = result["judge"]
+        summary["judge_disagreements"] = result["judge_disagreements"]
     print(json.dumps(summary))
 
 
