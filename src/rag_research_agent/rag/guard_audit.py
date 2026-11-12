@@ -22,6 +22,7 @@ class GoldEvidence:
     Only auxiliary IDs present in docs_in enter the overblocking denominator:
     evidence never retrieved is not a grading failure. docs_kept must be a
     subset of docs_in. Counts must match the associated RunEvent.grade.
+    ID collections must be lists or tuples, never a single string.
     """
 
     auxiliary_ids: tuple[str, ...]
@@ -30,7 +31,10 @@ class GoldEvidence:
 
     def __post_init__(self):
         for name in ("auxiliary_ids", "docs_in", "docs_kept"):
-            values = tuple(getattr(self, name))
+            raw = getattr(self, name)
+            if not isinstance(raw, (list, tuple)):
+                raise ValueError("gold evidence IDs must be lists or tuples")
+            values = tuple(raw)
             if any(not isinstance(value, str) or not value for value in values):
                 raise ValueError("gold evidence IDs must be nonempty strings")
             if len(set(values)) != len(values):

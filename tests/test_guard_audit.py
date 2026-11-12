@@ -156,3 +156,26 @@ def test_invalid_event_is_validated_by_real_class():
     payload["grade"]["docs_kept"] = 5
     with pytest.raises(ValueError):
         aggregate_guard_audit([payload])
+
+
+@pytest.mark.parametrize("field", ["auxiliary_ids", "docs_in", "docs_kept"])
+@pytest.mark.parametrize("invalid", ["doc-a1", None, {"doc-a1": True}])
+def test_gold_id_collections_reject_non_arrays(field, invalid):
+    fields = {"auxiliary_ids": (), "docs_in": (), "docs_kept": ()}
+    fields[field] = invalid
+    with pytest.raises(ValueError, match="lists or tuples"):
+        GoldEvidence(**fields)
+
+
+def test_gold_lists_are_snapshotted_before_aggregation():
+    auxiliary = ["doc-a1"]
+    candidates = ["doc-a1", "doc-b2"]
+    kept = ["doc-b2"]
+    labels = GoldEvidence(auxiliary, candidates, kept)
+    auxiliary.clear()
+    candidates.clear()
+    kept.append("doc-a1")
+    row = aggregate_guard_audit(
+        [event(docs_in=2, docs_kept=1)], gold={"run-a1": labels}
+    )["research"]["overblocking"]
+    assert (row["count"], row["total"], row["rate"]) == (1, 1, 1)
