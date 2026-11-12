@@ -55,12 +55,27 @@ def validate_metrics(metrics):
     return metrics
 
 
-def research_pack():
+def research_pack(retrieval=False):
     """Register the existing research corpus without copying or modifying it."""
     data = json.loads((ROOT / "evals/research/cases.ko.json").read_text(encoding="utf-8"))
+    labels = {}
+    labels_path = ROOT / "evals/research/gold_sources.json"
+    if retrieval and labels_path.exists():
+        labels = json.loads(labels_path.read_text(encoding="utf-8"))
+        if not isinstance(labels, dict) or set(labels) - {c["id"] for c in data["cases"]}:
+            raise ValueError("gold_sources must map known research case IDs to source ID lists")
+        for original in data["cases"]:
+            if original["id"] not in labels:
+                continue
+            sources = labels[original["id"]]
+            if (not isinstance(sources, list) or
+                    any(not isinstance(s, str) or s not in original["docs"] for s in sources)):
+                raise ValueError("gold_sources must contain source IDs from the case docs")
     cases = []
     for original in data["cases"]:
         case = dict(original)
+        if retrieval and case["id"] in labels:
+            case["gold_sources"] = labels[case["id"]]
         gold = case["gold"]
         case["expected"] = {
             "metrics": [[name.split()[-1], value] for name, value in gold["metrics"].items()],
@@ -79,11 +94,11 @@ def research_pack():
     return cases, validate_metrics(metrics)
 
 
-def load_pack(domain, packs=PACKS):
+def load_pack(domain, packs=PACKS, retrieval=False):
     if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", domain):
         raise ValueError("domain must be a simple folder name")
     if domain == "research":
-        return research_pack()
+        return research_pack(retrieval=retrieval)
     folder = Path(packs) / domain
     data = json.loads((folder / "cases.json").read_text(encoding="utf-8"))
     cases = data.get("cases") if isinstance(data, dict) else data
@@ -93,18 +108,23 @@ def load_pack(domain, packs=PACKS):
     return cases, validate_metrics(metrics)
 
 
-def research_output(case):
+def research_output(case, retrieval=False):
     # Lazy imports keep the generic evaluator independent of LangGraph/models/stores.
     from rag_research_agent.rag.research_graph import ResearchRunner, keyword_search
 
-    result = ResearchRunner(keyword_search(case["docs"])).run(
+    search = keyword_search(case["docs"])
+    ranked_ids = [sid for sid, _ in search(case["question"], 5)] if retrieval else None
+    result = ResearchRunner(search).run(
         case["question"], tuple(case.get("checklist", ())))
     body = " ".join(s.text for s in result.draft.sentences if not s.note)
     number = re.compile(r"(?<![\w.])\d[\d,]*(?:\.\d+)?")
     def numbers(text):
         return {n.replace(",", "") for n in number.findall(text)}
-    return {"body": body, "unsupported_numbers": sorted(
+    output = {"body": body, "unsupported_numbers": sorted(
         numbers(body) - numbers(" ".join(case["docs"].values())))}
+    if retrieval:
+        output["retrieved_ids"] = ranked_ids
+    return output
 
 
 def measure(metric, case, output):
@@ -131,7 +151,7 @@ def measure(metric, case, output):
     return checks, occurrences
 
 
-def evaluate(cases, metrics, evaluator=None, split="compare"):
+def evaluate(cases, metrics, evaluator=None, split="compare", retrieval=False):
     """evaluator(case) -> JSON field mapping; default scores case['output']."""
     validate_metrics(metrics)
     if split not in {"compare", "confirm"}:
@@ -147,10 +167,16 @@ def evaluate(cases, metrics, evaluator=None, split="compare"):
     if not selected:
         raise ValueError(f"empty pack for split: {split}")
     buckets = {m["name"]: {"checks": [], "violations": [], "count": 0} for m in metrics}
-    rows = []
+    rows, retrieval_scores = [], []
     for case in selected:
         output = evaluator(case) if evaluator else field(case, "output")
         row = {"case": case["id"], "metrics": {}}
+        if retrieval and case.get("gold_sources") and case.get("type") != "injection":
+            from rag_research_agent.rag.eval_retrieval import score_retrieval
+
+            score = score_retrieval(case["gold_sources"], field(output, "retrieved_ids"))
+            row["retrieval"] = score
+            retrieval_scores.append(score)
         for metric in metrics:
             if not metric["safety"] and case.get("type") == "injection":
                 continue
@@ -176,16 +202,27 @@ def evaluate(cases, metrics, evaluator=None, split="compare"):
             stats["ok"] = stats.pop("errors")
             quality[metric["name"]] = stats
     rates = [s["rate"] for s in quality.values() if s["n"]]
-    return {"split": split, "n_cases": len(selected), "quality_metrics": quality,
+    result = {"split": split, "n_cases": len(selected), "quality_metrics": quality,
             "quality_mean": sum(rates) / len(rates) if rates else None,
             "safety_metrics": safety, "cases": rows}
+    if retrieval:
+        from rag_research_agent.rag.eval_retrieval import aggregate_retrieval
+
+        result["retrieval"] = aggregate_retrieval(retrieval_scores)
+    return result
 
 
-def run(domain, packs=PACKS, split="compare", evaluator=None):
-    cases, metrics = load_pack(domain, packs)
+def run(domain, packs=PACKS, split="compare", evaluator=None, retrieval=False):
+    cases, metrics = load_pack(domain, packs, retrieval=retrieval)
     if split != "compare":
         raise ValueError("CLI supports compare only; confirm requires a separately selected configuration")
-    result = evaluate(cases, metrics, evaluator or (research_output if domain == "research" else None), split)
+    if evaluator is None and domain == "research":
+        def selected_evaluator(case):
+            return research_output(case, retrieval=retrieval and bool(case.get("gold_sources"))
+                                   and case.get("type") != "injection")
+    else:
+        selected_evaluator = evaluator
+    result = evaluate(cases, metrics, selected_evaluator, split, retrieval=retrieval)
     result.update(domain=domain, schema_version=1,
                   evaluation=("injected_evaluator" if evaluator is not None else
                               "synthetic_rule_path_test" if domain == "research" else "provided_outputs"),
@@ -201,13 +238,17 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--domain", required=True)
     parser.add_argument("--packs", type=Path, default=PACKS)
+    parser.add_argument("--retrieval", action="store_true", help="score labelled retrieval rankings")
     args = parser.parse_args(argv)
     try:
-        result = run(args.domain, args.packs)
+        result = run(args.domain, args.packs, retrieval=args.retrieval)
     except (ValueError, OSError) as exc:
         parser.error(str(exc))
-    print(json.dumps({"domain": args.domain, "n_cases": result["n_cases"],
-                      "quality_mean": result["quality_mean"], "safety_metrics": result["safety_metrics"]}))
+    summary = {"domain": args.domain, "n_cases": result["n_cases"],
+               "quality_mean": result["quality_mean"], "safety_metrics": result["safety_metrics"]}
+    if args.retrieval:
+        summary["retrieval"] = result["retrieval"]
+    print(json.dumps(summary))
 
 
 if __name__ == "__main__":
