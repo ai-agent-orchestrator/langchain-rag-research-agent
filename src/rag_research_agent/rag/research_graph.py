@@ -28,6 +28,7 @@ from rag_research_agent.guard.research_filter import (
     CAUSAL_CUES, CAUSAL_PATTERN, CLICHE_CUES, CONSTRAINT_CUES, relevant_claims, verify_report,
 )
 from rag_research_agent.observe.tracing import serving_config, serving_trace_guard
+from rag_research_agent.rag.graders import Grader
 
 SearchFn = Callable[[str, int], list[tuple[str, str]]]      # (query, k) -> [(source_id, masked text)]
 EndType = Literal["END", "give_up", "cutoff", "human"]  # human routing is reserved for R46
@@ -74,6 +75,7 @@ class ResearchConfig:
     stop_if_no_progress: bool = False  # any code recurring in consecutive verifications
     writer: Literal["rule", "llm"] = "rule"  # requires writer_model and masker
     parallel_extract: bool = False  # document-local, thread-safe extractors only
+    grader: Grader | None = None   # opt-in; None preserves the existing rule path
 
 
 PlannerFn = Callable[[str, tuple[str, ...], ResearchConfig], ResearchPlan]
@@ -468,8 +470,18 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
 
     def refine_node(s: ResearchState):
         codes = []
+        pending = s.get("pending", [])
+        if cfg.grader is not None:
+            relevant = []
+            for source in pending:
+                grade = cfg.grader.grade_relevance(s["question"], source.text)
+                codes.append(f"RELEVANCE:{source.source_id}:{'KEEP' if grade.relevant else 'DROP'}:"
+                             + " ".join(grade.reason.split())[:160])
+                if grade.relevant:
+                    relevant.append(source)
+            pending = relevant
         kept, refine_codes = call_plugin("refiner", refiner, refine_rule, codes,
-                                         s.get("pending", []), cfg)
+                                         pending, cfg)
         return {"pending": kept, "log": codes + refine_codes}
 
     def extract_node(s: ResearchState):
@@ -564,6 +576,15 @@ def build_research_graph(search: SearchFn, cfg: ResearchConfig = ResearchConfig(
         codes = call_plugin("verifier", verifier, verify_report, plugin_codes,
                             s["draft"], s["plan"], s.get("claims", []), s.get("metrics", []),
                               expect_balance=cfg.stance_split)
+        if cfg.grader is not None:
+            # Only extracted, span-validated claims are evidence: rejected retrieved
+            # sources remain provenance in State but must never support the judge.
+            grade = cfg.grader.grade_grounded(s["draft"].body(),
+                                              tuple(c.text for c in s.get("claims", [])))
+            reason = " ".join(grade.reason.split())[:160] or "UNSPECIFIED"
+            plugin_codes.append(f"GROUNDED:{'PASS' if grade.grounded else 'FAIL'}:{reason}")
+            if not grade.grounded:
+                codes = tuple(codes) + ("UNGROUNDED:" + reason,)
         update = {"verify_codes": codes,
                   "log": plugin_codes + ["VERIFY:" + (",".join(codes) if codes else "PASS")]}
         if cfg.stop_if_no_progress and set(codes) & set(s.get("verify_codes", ())):
