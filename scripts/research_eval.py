@@ -1,6 +1,7 @@
 """Research-graph experiment: run configs over synthetic cases, append results, rebuild the board.
 
     python scripts/research_eval.py                    # compare split, all configs
+    python scripts/research_eval.py --cases evals/research/cases_v2.ko.json
     python scripts/research_eval.py --split confirm --configs graph_full   # confirm the chosen config once
     python scripts/research_eval.py --note "k=3 시험"   # label this run on the board
 
@@ -11,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 from dataclasses import asdict, replace
 from pathlib import Path
@@ -140,6 +142,7 @@ def git_sha():
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
+    ap.add_argument("--cases", type=Path, default=CASES, help="question JSON file (default: %(default)s)")
     ap.add_argument("--split", default="compare", choices=["compare", "confirm", "all"])
     ap.add_argument("--configs", default=",".join(CONFIGS))
     ap.add_argument("--k", type=int, default=None, help="override passages per branch for graph configs")
@@ -147,10 +150,15 @@ def main(argv=None):
     ap.add_argument("--sweep", default="0,10,30,60",
                     help="extra background documents per case for the cost sweep ('' to skip)")
     a = ap.parse_args(argv)
-    data = json.loads(CASES.read_text(encoding="utf-8"))
+    try:
+        cases_bytes = a.cases.read_bytes()
+    except OSError as exc:
+        ap.error(f"cannot read cases file '{a.cases}': {exc.strerror}")
+    data = json.loads(cases_bytes.decode("utf-8"))
     cases = [c for c in data["cases"] if a.split == "all" or c["split"] == a.split]
     run = {"at": dt.datetime.now().isoformat(timespec="seconds"), "sha": git_sha(), "split": a.split,
-           "note": a.note, "dataset": data["version"], "configs": {}}
+           "note": a.note, "dataset": data["version"], "configs": {},
+           "cases_file": a.cases.name, "cases_sha256": hashlib.sha256(cases_bytes).hexdigest()}
     for name in [c.strip() for c in a.configs.split(",") if c.strip()]:
         cfg = CONFIGS[name]
         if cfg is not None and a.k:
