@@ -135,7 +135,74 @@ button[aria-selected=true]{border:2px solid var(--accent)}ul{padding-left:20px}s
 """
 
 
-def render(events, *, gold=None, injection_run_ids=()) -> str:
+def comparison_panel(events, comparison, injections=()) -> str:
+    """Opt-in demo sidecar; no scores are inferred from telemetry or missing labels."""
+    by_id = {e.run_id: e for e in events}
+    groups = defaultdict(list)
+    for row in comparison.get("rows", ()):
+        if row["run_id"] not in by_id:
+            raise ValueError("comparison references an unknown run")
+        if row["run_id"] not in injections:
+            groups[(row["domain"], row["k"])].append(row)
+
+    def rates(values):
+        values = [v for v in values if v is not None]
+        return ratio(sum(bool(v) for v in values), len(values))
+
+    def mean(values):
+        values = list(values)
+        return (f"{sum(values)/len(values):.3f} (n={len(values)}; Wilson 해당 없음: 평균)"
+                if values else "미검증 (n=0)")
+
+    html = '<section id="config-comparison"><h2>설정 비교</h2>'
+    html += ('<p>합성 문항·규칙/가짜 모델 기준 · 경로 시험. 실제 모델 품질 미검증. '
+             '품질은 골드 항목 충족률, 판정 점수는 FakeJudge 어휘 점수입니다. '
+             '비율은 Wilson 95%, 평균에는 Wilson을 적용하지 않습니다. '
+             '근거성은 별도 R44 고정 문항의 검증기+grader 평가이며 그래프 출력 탐지율이 아닙니다. '
+             '원가는 가상 요율(입력 100, 출력 200 KRW/백만 추정 토큰)입니다. '
+             'human은 이벤트 스키마에 없어 미검증입니다.</p>')
+    if comparison.get("target_warnings"):
+        html += '<h3>R39 목표선 초과/미달 · 합성 문항·규칙/가짜 모델 기준</h3>'
+        html += listing((w["domain"] + " / " + w["metric"],
+                         f'{w["value"]} ({w["bound"]} {w["limit"]}; 단일 실행 n=1)')
+                        for w in comparison["target_warnings"])
+    if not groups:
+        return html + '<p>미검증 (n=0)</p></section>'
+    for (domain, k), group in sorted(groups.items()):
+        html += (f'<h3>{escape(domain)} · k={k}</h3><div style="overflow-x:auto"><table>'
+                 '<caption>합성 문항·규칙/가짜 모델 기준 · 경로 시험</caption><thead><tr>')
+        headings = ("설정", "품질", "END", "give_up", "cutoff", "human", "평균 루프",
+                    "평균 추정 토큰", "평균 추정 원가 KRW", "hit@k (최초 검색)",
+                    "근거성 탐지율 (별도 R44)", "과차단률 (별도 R44)", "판정 점수", "판정 정답률")
+        html += ''.join(f'<th>{h}</th>' for h in headings) + '</tr></thead><tbody>'
+        for name in dict.fromkeys(row["config"] for row in group):
+            rows = [row for row in group if row["config"] == name]
+            cohort = [by_id[row["run_id"]] for row in rows]
+            ground = comparison.get("grounding", {}).get(name, ()) if domain == "research" else ()
+            quality = [v for row in rows for v in row["quality"]]
+            values = [name, rates(quality)]
+            values += [ratio(sum(e.end_type == end for e in cohort), len(cohort))
+                       for end in ("END", "give_up", "cutoff")]
+            values += ["미검증 (n=0; 스키마 후속 연결 필요)",
+                       mean(sum(e.loops.values()) for e in cohort),
+                       mean(sum(e.tokens.values()) for e in cohort), mean(e.cost_krw for e in cohort),
+                       rates(row["hit"] for row in rows),
+                       rates(row["blocked"] for row in ground if row["expected"] == "block"),
+                       rates(row["blocked"] for row in ground if row["expected"] == "pass"),
+                       mean(row["judge_score"] for row in rows), rates(row["judge_correct"] for row in rows)]
+            html += '<tr data-config="' + escape(name, quote=True) + '">'
+            html += ''.join('<td>' + escape(str(v)) + '</td>' for v in values) + '</tr>'
+        html += '</tbody></table></div><h3>품질 막대 비교 · 합성 문항·규칙/가짜 모델 기준</h3>'
+        for name in dict.fromkeys(row["config"] for row in group):
+            quality = [v for row in group if row["config"] == name for v in row["quality"]]
+            width = 100 * sum(quality) / len(quality) if quality else 0
+            html += (f'<div>{escape(name)}: {escape(rates(quality))}'
+                     f'<svg viewBox="0 0 100 6" role="img" aria-label="품질 {escape(name, quote=True)}">'
+                     f'<rect width="{width:.2f}" height="6" /></svg></div>')
+    return html + '</section>'
+
+
+def render(events, *, gold=None, injection_run_ids=(), comparison=None) -> str:
     events = [e if isinstance(e, RunEvent) else RunEvent(**e) for e in events]
     if len({e.run_id for e in events}) != len(events):
         raise ValueError("duplicate run_id")
@@ -160,6 +227,7 @@ def render(events, *, gold=None, injection_run_ids=()) -> str:
             '<h1>계측 보드 · 4패널</h1><label>테마 <select id="theme"><option value="auto">자동</option>'
             '<option value="light">밝게</option><option value="dark">어둡게</option></select></label>'
             '<p>원가는 이벤트 cost_krw 기준. 비율은 표본 수·Wilson 95% 구간 포함. 관측 0건은 보장이 아닙니다.</p>'
+            + (comparison_panel(events, comparison, injections) if comparison is not None else '') +
             '<nav role="tablist" aria-label="도메인">' + "".join(tabs) + '</nav>' + "".join(bodies) +
             '</main><script>'
             'document.getElementById("theme").onchange=e=>{document.documentElement.dataset.theme=e.target.value};'
@@ -174,11 +242,13 @@ def main(argv=None):
     parser.add_argument("--events", type=Path, default=ROOT / ".runs/events")
     parser.add_argument("--output", type=Path, default=ROOT / ".runs/metrics_board/index.html")
     parser.add_argument("--injection-run-id", action="append", default=[])
+    parser.add_argument("--comparison", type=Path, help="optional board_demo evaluation JSON")
     args = parser.parse_args(argv)
     output = args.output.resolve()
     if not output.is_relative_to((ROOT / ".runs").resolve()):
         parser.error("output must be inside .runs/")
-    html = render(load_events(args.events), injection_run_ids=args.injection_run_id)
+    comparison = json.loads(args.comparison.read_text(encoding="utf-8")) if args.comparison else None
+    html = render(load_events(args.events), injection_run_ids=args.injection_run_id, comparison=comparison)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(html, encoding="utf-8")
 
