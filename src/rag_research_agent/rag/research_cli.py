@@ -133,10 +133,16 @@ def main(argv: list[str] | None = None, *, embedder=None,
         result = ResearchRunner(search, cfg, masker=_Masker(), planner_model=planner_model,
                                 extractor_model=extractor_model, writer_model=writer_model).run(
                                     mask_pii(question), checklist)
+        # EMPTY_REPORT describes the draft, not why it is empty. Expose the
+        # absence of validated evidence as well, retaining every graph code.
+        # Retrieved sources alone are insufficient: refine may reject them all.
+        verify_codes = list(result.verify_codes)
+        if not result.claims and "NO_EVIDENCE" not in verify_codes:
+            verify_codes.append("NO_EVIDENCE")
         payload = {
             "report": result.report,
             "path": list(result.path),
-            "verify_codes": list(result.verify_codes),
+            "verify_codes": verify_codes,
             "stopped": result.stopped,
             "estimated_tokens": result.shadow_tokens,
             "estimated": True,
@@ -155,7 +161,7 @@ def main(argv: list[str] | None = None, *, embedder=None,
             rendered = (f"# Research report\n\n{result.report or 'NO_EVIDENCE'}\n\n"
                         f"## Sources\n\n{sources or 'NO_EVIDENCE'}\n\n"
                         f"Node path: {' -> '.join(result.path)}\n\n"
-                        f"Verification codes: {', '.join(result.verify_codes) or 'PASS'}\n\n"
+                        f"Verification codes: {', '.join(verify_codes) or 'PASS'}\n\n"
                         f"Stop code: {result.stopped or 'NONE'}\n\n"
                         f"End type: {result.end_type}\n\n"
                         f"Estimated tokens (shadow, not billing): {result.shadow_tokens}")
