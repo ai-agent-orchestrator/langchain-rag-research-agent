@@ -54,8 +54,11 @@ def generate_events(seed: int = 42, per_domain: int = 25) -> list[RunEvent]:
             end_type = rng.choices(("END", "give_up", "cutoff"), weights=(8, 1, 1))[0]
             if end_type == "END":
                 path.append("generate")
-            for _ in range(loops["verify"]):
-                path.extend(("verify", "write"))
+                for _ in range(loops["verify"]):
+                    path.extend(("verify", "write"))
+            else:
+                # These demo runs stop before generation, so there is no draft to verify.
+                loops["verify"] = 0
             nodes = []
             usage = {model: {"in": 0, "out": 0} for model in DEMO_PRICING}
             calls = {"slm": 0, "flagship": 0}
@@ -76,6 +79,15 @@ def generate_events(seed: int = 42, per_domain: int = 25) -> list[RunEvent]:
                 guard = ({"gate": "grounded", "code": "UNSUPPORTED_NUMBER",
                           "reason": "합성 예시: 가상 지표 근거 불일치", "span": ""},)
             total_ms = sum(node.ms for node in nodes)
+            # Demo convention: the first token arrives halfway through the first
+            # generation node. No-generation runs use total_ms as a sentinel.
+            ttft_ms = total_ms
+            elapsed_ms = 0
+            for node in nodes:
+                if node.model == "demo-flagship":
+                    ttft_ms = elapsed_ms + node.ms / 2
+                    break
+                elapsed_ms += node.ms
             events.append(RunEvent(
                 run_id="demo-" + _label(f"{seed}:{domain}:{index}"), domain=domain,
                 track=track, config="demo_fast" if track == "fast" else "demo_deep",
@@ -83,7 +95,7 @@ def generate_events(seed: int = 42, per_domain: int = 25) -> list[RunEvent]:
                 end_type=end_type, loops=loops, calls=calls,
                 tokens={direction: sum(v[direction] for v in usage.values()) for direction in ("in", "out")},
                 cost_krw=cost_krw(usage, DEMO_PRICING),
-                ttft_ms=total_ms if not calls["flagship"] else total_ms - nodes[-1].ms / 2,
+                ttft_ms=ttft_ms,
                 total_ms=total_ms,
                 grade={"docs_in": docs_in, "docs_kept": docs_kept,
                        "relevance_drop_rate": (docs_in - docs_kept) / docs_in},

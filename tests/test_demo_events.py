@@ -72,6 +72,28 @@ def test_invalid_generator_arguments(seed, count):
         generate_events(seed, count)
 
 
+def test_stopped_runs_have_no_generation_or_draft_verification():
+    events = generate_events(per_domain=25)
+    stopped = [event for event in events if event.end_type != "END"]
+    assert {event.end_type for event in stopped} == {"give_up", "cutoff"}
+    for event in stopped:
+        assert not {"generate", "write", "verify"}.intersection(event.path)
+        assert event.loops["verify"] == event.calls["flagship"] == 0
+        assert event.ttft_ms == event.total_ms
+        assert from_json(event.to_json(dumps=json.dumps), loads=json.loads) == event
+
+
+def test_ttft_is_within_first_generation_even_when_later_rewrites_exist():
+    events = generate_events(per_domain=25)
+    generated = [event for event in events if event.calls["flagship"]]
+    assert generated
+    assert any(event.loops["verify"] for event in generated)
+    for event in generated:
+        first = next(i for i, node in enumerate(event.nodes) if node.model == "demo-flagship")
+        start = sum(node.ms for node in event.nodes[:first])
+        assert start < event.ttft_ms < start + event.nodes[first].ms
+
+
 def test_summary_counts_intervals_and_domain_means():
     original = generate_events(per_domain=1)[0]
     fast = replace(original, run_id="run-a", track="fast", cost_krw=1,
