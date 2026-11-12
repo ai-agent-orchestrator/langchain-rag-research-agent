@@ -1,0 +1,780 @@
+[
+  {
+    "id": "normal-a1",
+    "expected": "pass",
+    "fault_type": "none",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "매출은 18% 증가했다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "매출은 18% 증가했다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "normal-a2",
+    "expected": "pass",
+    "fault_type": "none",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "비용은 12% 감소했다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "비용은 12% 감소했다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "normal-a3",
+    "expected": "pass",
+    "fault_type": "none",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "참여자는 24명이다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "참여자는 24명이다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "normal-a4",
+    "expected": "pass",
+    "fault_type": "none",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "평균 대기시간은 7분이다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "평균 대기시간은 7분이다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "normal-a5",
+    "expected": "pass",
+    "fault_type": "none",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "처리 건수는 36건이다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "처리 건수는 36건이다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "normal-a6",
+    "expected": "pass",
+    "fault_type": "none",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "만족도는 82%다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "만족도는 82%다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "normal-a7",
+    "expected": "pass",
+    "fault_type": "none",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "지원 기간은 6개월이다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "지원 기간은 6개월이다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "normal-a8",
+    "expected": "pass",
+    "fault_type": "none",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "시설 이용료는 500원이다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "시설 이용료는 500원이다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "normal-a9",
+    "expected": "pass",
+    "fault_type": "none",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "검토 대상은 9개다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "검토 대상은 9개다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "normal-a10",
+    "expected": "pass",
+    "fault_type": "none",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "조사 기간은 3주다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "조사 기간은 3주다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "normal-a11",
+    "expected": "pass",
+    "fault_type": "none",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "가상 규정 제4조는 신청서 제출을 정한다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "가상 규정 제4조는 신청서 제출을 정한다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "normal-a12",
+    "expected": "pass",
+    "fault_type": "none",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "가상 규정 제8조는 검토 절차를 정한다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "가상 규정 제8조는 검토 절차를 정한다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "normal-a13",
+    "expected": "pass",
+    "fault_type": "none",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "자동화 때문에 처리시간이 감소했다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "자동화 때문에 처리시간이 감소했다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "normal-a14",
+    "expected": "pass",
+    "fault_type": "none",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "다만 임시 시설은 대상에서 제외된다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "다만 임시 시설은 대상에서 제외된다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "normal-a15",
+    "expected": "pass",
+    "fault_type": "none",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "실험 장비는 온도와 습도를 함께 기록한다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "실험 장비는 온도와 습도를 함께 기록한다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "new-a1",
+    "expected": "block",
+    "fault_type": "invented_number",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "매출은 증가했다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "매출은 18% 증가했다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "new-a2",
+    "expected": "block",
+    "fault_type": "invented_number",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "참여자가 참석했다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "참여자는 24명이다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "new-a3",
+    "expected": "block",
+    "fault_type": "invented_number",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "대기시간이 감소했다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "대기시간은 7분이다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "new-a4",
+    "expected": "block",
+    "fault_type": "invented_number",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "신청서가 접수됐다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "신청서는 36건 접수됐다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "new-a5",
+    "expected": "block",
+    "fault_type": "invented_number",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "시설은 운영 중이다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "시설 이용료는 500원이다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "changed-a1",
+    "expected": "block",
+    "fault_type": "altered_number",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "매출은 18% 증가했다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "매출은 28% 증가했다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "changed-a2",
+    "expected": "block",
+    "fault_type": "altered_number",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "비용은 12% 감소했다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "비용은 22% 감소했다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "changed-a3",
+    "expected": "block",
+    "fault_type": "altered_number",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "평균 대기시간은 7분이다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "평균 대기시간은 9분이다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "changed-a4",
+    "expected": "block",
+    "fault_type": "altered_number",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "지원 기간은 6개월이다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "지원 기간은 8개월이다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "changed-a5",
+    "expected": "block",
+    "fault_type": "altered_number",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "검토 대상은 9개다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "검토 대상은 19개다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "statute-a1",
+    "expected": "block",
+    "fault_type": "invented_statute",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "가상 규정 제1조는 신청서 제출을 정한다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "가상 규정 제11조는 신청서 제출을 정한다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "statute-a2",
+    "expected": "block",
+    "fault_type": "invented_statute",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "가상 규정 제2조는 신청서 제출을 정한다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "가상 규정 제12조는 신청서 제출을 정한다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "statute-a3",
+    "expected": "block",
+    "fault_type": "invented_statute",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "가상 규정 제3조는 신청서 제출을 정한다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "가상 규정 제13조는 신청서 제출을 정한다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "statute-a4",
+    "expected": "block",
+    "fault_type": "invented_statute",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "가상 규정 제4조는 신청서 제출을 정한다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "가상 규정 제14조는 신청서 제출을 정한다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "causal-a1",
+    "expected": "block",
+    "fault_type": "causal_assertion",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "교육 참여와 생산성 증가가 함께 관찰됐다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "교육 참여 때문에 생산성이 증가했다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "causal-a2",
+    "expected": "block",
+    "fault_type": "causal_assertion",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "공원 면적과 만족도 사이에 상관관계가 관찰됐다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "공원 면적 때문에 만족도가 증가했다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "causal-a3",
+    "expected": "block",
+    "fault_type": "causal_assertion",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "자동화 도입과 비용 감소가 함께 관찰됐다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "자동화 도입 때문에 비용이 감소했다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "causal-a4",
+    "expected": "block",
+    "fault_type": "causal_assertion",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "방문 증가와 매출 증가가 함께 관찰됐다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "방문 증가 때문에 매출이 증가했다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "balance-a1",
+    "expected": "block",
+    "fault_type": "one_sided",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "자동화는 처리시간을 18% 줄였다.",
+        "stance": "pro"
+      },
+      {
+        "id": "claim-b1",
+        "text": "자동화는 유지비를 12% 늘렸다.",
+        "stance": "con"
+      }
+    ],
+    "answer": [
+      {
+        "text": "자동화는 처리시간을 18% 줄였다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "balance-a2",
+    "expected": "block",
+    "fault_type": "one_sided",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "확장은 수용인원을 24명 늘렸다.",
+        "stance": "pro"
+      },
+      {
+        "id": "claim-b1",
+        "text": "확장은 비용을 9% 늘렸다.",
+        "stance": "con"
+      }
+    ],
+    "answer": [
+      {
+        "text": "확장은 수용인원을 24명 늘렸다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "balance-a3",
+    "expected": "block",
+    "fault_type": "one_sided",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "교육은 만족도를 7% 높였다.",
+        "stance": "pro"
+      },
+      {
+        "id": "claim-b1",
+        "text": "교육은 업무시간을 3시간 줄였다.",
+        "stance": "con"
+      }
+    ],
+    "answer": [
+      {
+        "text": "교육은 만족도를 7% 높였다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "balance-a4",
+    "expected": "block",
+    "fault_type": "one_sided",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "공원은 방문자를 36명 늘렸다.",
+        "stance": "pro"
+      },
+      {
+        "id": "claim-b1",
+        "text": "공원은 관리비를 8% 늘렸다.",
+        "stance": "con"
+      }
+    ],
+    "answer": [
+      {
+        "text": "공원은 방문자를 36명 늘렸다.",
+        "claim_ids": [
+          "claim-a1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "uncited-a1",
+    "expected": "block",
+    "fault_type": "uncited",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "매출은 18% 증가했다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "매출은 18% 증가했다.",
+        "claim_ids": []
+      }
+    ]
+  },
+  {
+    "id": "uncited-a2",
+    "expected": "block",
+    "fault_type": "uncited",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "비용은 12% 감소했다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "비용은 12% 감소했다.",
+        "claim_ids": []
+      }
+    ]
+  },
+  {
+    "id": "uncited-a3",
+    "expected": "block",
+    "fault_type": "uncited",
+    "evidence": [
+      {
+        "id": "claim-a1",
+        "text": "참여자는 24명이다."
+      }
+    ],
+    "answer": [
+      {
+        "text": "참여자는 24명이다.",
+        "claim_ids": []
+      }
+    ]
+  }
+]
