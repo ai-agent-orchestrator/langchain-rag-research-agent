@@ -171,6 +171,20 @@ class TraceCollector(BaseCallbackHandler):
                                 usage[key] = usage.get(key, 0) + metadata.get(key, 0)
             self._measured[owner].append((model, usage))
 
+    def on_llm_error(self, error, *, run_id, **kwargs):
+        # A failed attempt is still a model call. Preserve reported partial
+        # usage when available; otherwise tokens remain unknown/estimated.
+        # Never retain the exception, prompts, or partial generated text.
+        response = kwargs.get("response")
+        if response is not None:
+            self.on_llm_end(response, run_id=run_id)
+            return
+        with self._lock:
+            record = self._llms.pop(run_id, None)
+            if record is not None:
+                owner, model = record
+                self._measured[owner].append((model, {}))
+
     def on_llm_new_token(self, token, **kwargs):
         with self._lock:
             if self._ttft_ms is None:

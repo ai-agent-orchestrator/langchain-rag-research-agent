@@ -161,3 +161,38 @@ def test_parallel_invocations_and_first_token_use_injected_clock():
     assert event.ttft_ms == pytest.approx(3)
     assert event.total_ms == pytest.approx(6)
     assert "DO_NOT_COPY" not in event.to_json(dumps=json.dumps)
+
+
+@pytest.mark.parametrize("role", ["slm", "flagship"])
+@pytest.mark.parametrize("partial_usage", [False, True])
+def test_failed_model_attempt_and_retry_are_both_counted(role, partial_usage):
+    from langchain_core.callbacks import CallbackManager
+
+    ticks = count()
+    collector = TraceCollector(clock=lambda: next(ticks) / 1000, sink=lambda event: None,
+        config={"model_roles": {"local-model": role}})
+    collector.begin()
+    node_id = uuid4()
+    collector.on_chain_start(None, {}, run_id=node_id, name="write",
+        metadata={"langgraph_node": "write"}, tags=["graph:step:1"])
+    callbacks = CallbackManager([collector], parent_run_id=node_id)
+    failed = callbacks.on_llm_start({}, ["DO_NOT_COPY"],
+        invocation_params={"model_name": "local-model"})[0]
+    kwargs = {}
+    if partial_usage:
+        kwargs["response"] = LLMResult(generations=[[Generation(text="DO_NOT_COPY")]],
+            llm_output={"token_usage": {"prompt_tokens": 7, "completion_tokens": 2}})
+    failed.on_llm_error(RuntimeError("DO_NOT_COPY"), **kwargs)
+    retried = callbacks.on_llm_start({}, ["DO_NOT_COPY"],
+        invocation_params={"model_name": "local-model"})[0]
+    retried.on_llm_end(LLMResult(generations=[[Generation(text="DO_NOT_COPY")]],
+        llm_output={"token_usage": {"prompt_tokens": 11, "completion_tokens": 3}}))
+    collector.on_chain_end({"cost": [("write", "model_in", 100)]}, run_id=node_id)
+    event = collector.finish(replace(result(), path=("write",)), max_shadow_tokens=12000)
+    assert dict(event.calls) == {"slm": 2 if role == "slm" else 0,
+                                 "flagship": 2 if role == "flagship" else 0}
+    assert dict(event.tokens) == {"in": 18 if partial_usage else 11,
+                                  "out": 5 if partial_usage else 3}
+    assert [n.estimated for n in event.nodes] == [not partial_usage, False]
+    assert [n.ms for n in event.nodes] == pytest.approx([1, 0])
+    assert "DO_NOT_COPY" not in event.to_json(dumps=json.dumps)
