@@ -33,7 +33,10 @@ def test_verified_end():
 
 
 def test_gap_exhaustion_gives_up_with_reason():
-    result = run(replace(CONFIG, max_gap_rounds=1, rewrite_loop=False), ("거래량",))
+    # Keep a supported finding in the draft so verification reaches GAP,
+    # rather than returning EMPTY_REPORT before checking required metrics.
+    result = run(replace(CONFIG, max_gap_rounds=1, rewrite_loop=False), ("매출", "거래량"))
+    assert any(sentence.claim_ids for sentence in result.draft.sentences if not sentence.note)
     assert "GAP:거래량" in result.verify_codes
     assert "검수 미통과 항목:" in result.report
     assert result.stopped == ""  # legacy field is preserved
@@ -79,5 +82,9 @@ def test_human_value_reserved_and_existing_review_compatible():
 
 
 def test_loop_limit_is_give_up_rather_than_cost_cutoff():
-    result = replace(run(), stopped="LOOP_LIMIT")
+    # Start from a verified report: an empty checklist with auto_metrics=False
+    # otherwise produces an empty draft and consumes the rewrite budget.
+    original = run(checklist=("매출",))
+    assert original.end_type == "END" and not original.verify_codes
+    result = replace(original, stopped="LOOP_LIMIT")
     assert_event(result, "give_up", rewrite=0, gap=0, verify=0)
