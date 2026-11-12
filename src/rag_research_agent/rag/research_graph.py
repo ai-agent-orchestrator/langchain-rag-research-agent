@@ -12,7 +12,7 @@ from __future__ import annotations
 
 MATURITY = "incubating"
 
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, field, replace
 import operator
 import re
 from typing import Annotated, Callable, Literal, Optional, Protocol, TypedDict
@@ -30,6 +30,7 @@ from rag_research_agent.guard.research_filter import (
 from rag_research_agent.observe.tracing import serving_config, serving_trace_guard
 
 SearchFn = Callable[[str, int], list[tuple[str, str]]]      # (query, k) -> [(source_id, masked text)]
+EndType = Literal["END", "give_up", "cutoff", "human"]  # human routing is reserved for R46
 
 # Stance is about arguments (opportunity vs risk), not about whether a number went up or down.
 PRO_CUES = ("기회", "긍정", "기대", "전망이 밝", "효과를 낼", "개선 효과", "회복 기회", "성장 기회")
@@ -318,6 +319,19 @@ class ResearchResult:
     cost: tuple
     path: tuple
     interrupts: tuple = ()          # LangGraph Interrupt objects; path covers this invocation only
+    max_shadow_tokens: int | None = field(default=None, repr=False, compare=False)
+    end_type: EndType = field(init=False)
+
+    def __post_init__(self):
+        # Derive once from the completed invocation, including dataclasses.replace
+        # callers. Keep stopped and plan-review interrupt semantics compatible.
+        cutoff = self.stopped in {"PER_NODE_TOKEN_CAP", "COST_LIMIT", "NODE_ERROR"}
+        if (self.verify_codes and self.max_shadow_tokens is not None
+                and self.shadow_tokens >= self.max_shadow_tokens):
+            cutoff = True
+        end_type: EndType = "cutoff" if cutoff else (
+            "give_up" if self.stopped or self.verify_codes or self.interrupts else "END")
+        object.__setattr__(self, "end_type", end_type)
 
     @property
     def shadow_tokens(self) -> int:
@@ -756,7 +770,7 @@ class ResearchRunner:
             # Resume updates omit completed nodes; read the full reducer state from the saver.
             state = _checkpoint_state(self.graph.get_state(config).values, restore=True)
         draft = state.get("draft") or Draft()
-        if state.get("verify_codes") and draft.sentences:
+        if state.get("verify_codes"):
             # budget spent before the report passed: say so instead of presenting it as verified
             draft = Draft(draft.sentences + (ReportSentence("검수 미통과 항목: " + ", ".join(state["verify_codes"]), note=True),))
         if state.get("stopped") in ("PER_NODE_TOKEN_CAP", "NO_PROGRESS"):
@@ -764,7 +778,8 @@ class ResearchRunner:
         return ResearchResult(draft.render(), draft, state.get("plan") or ResearchPlan(()), tuple(state.get("claims", [])),
                               tuple(state.get("metrics", [])), tuple(state.get("sources", [])),
                               tuple(state.get("verify_codes", ())), state.get("stopped", ""),
-                              tuple(state.get("log", [])), tuple(state.get("cost", [])), tuple(path), interrupts)
+                              tuple(state.get("log", [])), tuple(state.get("cost", [])), tuple(path), interrupts,
+                              max_shadow_tokens=self.cfg.max_shadow_tokens)
 
 
 def run_baseline(search: SearchFn, question: str, *, k: int = 6, max_sentences: int = 5,

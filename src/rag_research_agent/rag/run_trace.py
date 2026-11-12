@@ -47,11 +47,11 @@ def event_from_result(result, domain, config):
                 pending = next(records, None)
             nodes.append(NodeEvent(name, 0, usage["model_in"], usage["model_out"], None, True))
     nodes = tuple(nodes)
-    cutoff = result.stopped in {"PER_NODE_TOKEN_CAP", "LOOP_LIMIT", "COST_LIMIT", "NODE_ERROR"}
+    end_type = result.end_type
+    # Preserve callers that supplied their budget only as legacy event metadata.
+    # Without that explicit override, copy the result classification unchanged.
     if result.verify_codes and result.shadow_tokens >= config.get("max_shadow_tokens", float("inf")):
-        cutoff = True
-    end_type = "cutoff" if cutoff else (
-        "give_up" if result.stopped or result.verify_codes or result.interrupts else "END")
+        end_type = "cutoff"
     calls = {"slm": 0, "flagship": 0}
     for node in nodes:
         role = config.get("model_roles", {}).get(node.model)
