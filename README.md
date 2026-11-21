@@ -1,5 +1,13 @@
 # langchain-rag-research-agent
 
+## Three-signal structure (2026-11-21)
+
+> **Sentence scores are built from three signals: golden-rule edge, similarity, and surprisal.** This repository only provides the slots and a plain weighted sum (`edge/signals.py`). Calibrated combinations, weights and gate values are not included; **further engine development continues privately.** Only structural changes will be reflected here.
+
+- `SurprisalScorer`: interface returning one information value per segment (e.g. mean -log p). `FakeSurprisalScorer` for tests.
+- `collect()`: aligns the three signals by segment and turns each into a within-document percentile (0-1).
+- `combine()`: plain weighted sum. **Weights have no defaults; callers must pass them.**
+
 ## Design change, 2026-11-10: control flow moves onto LangGraph rails
 
 > **However precise the similarity search and golden rules are, a one-way LCEL chain or a fixed ReAct agent tangles the moment a research run needs 2–3 re-searches or error handling, and its token cost runs away. That is a problem of the path, not of the parts.**
